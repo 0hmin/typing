@@ -22,6 +22,8 @@
       --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
       --type-gutter: 28px;
       --type-gutter-gap: 10px;
+      --type-stack-pad-x: clamp(10px, 3.2vw, 18px);
+      --type-sentence-inner-pad-x: 12px;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -255,9 +257,12 @@
     .fake-block.bullet::before { content: "•"; position: absolute; left: 0.25em; color: var(--text-muted); }
 
     /* ─── Typing stack: 지문 영역 + 입력 영역 (동일 거터로 정렬) ─── */
-    .block-label { font-size: 12px; color: var(--text-muted); margin: 28px 0 6px; max-width: 720px; }
+    .block-label { font-size: 12px; color: var(--text-muted); margin: 28px 0 6px; max-width: 720px; width: 100%; box-sizing: border-box; padding: 0 var(--type-stack-pad-x); }
     .type-stack {
       max-width: 720px;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0 var(--type-stack-pad-x);
       position: relative;
       outline: none;
       display: flex;
@@ -270,8 +275,8 @@
     .type-sentence-box {
       display: flex;
       align-items: flex-start;
-      gap: var(--type-gutter-gap);
-      padding: 10px 0;
+      gap: 12px;
+      padding: 14px var(--type-sentence-inner-pad-x) 16px;
       background: rgba(55, 53, 47, 0.04);
       border: 1px solid var(--border);
       border-radius: 4px;
@@ -279,18 +284,23 @@
       line-height: 1.65;
       letter-spacing: 0.01em;
       color: var(--text);
+      width: 100%;
+      box-sizing: border-box;
     }
     .type-line-gutter {
       width: var(--type-gutter);
       flex-shrink: 0;
       display: flex;
       justify-content: center;
-      padding-top: 2px;
+      align-items: flex-start;
+      padding: 4px 4px 0;
+      box-sizing: border-box;
     }
     .type-ref-bulb {
       flex-shrink: 0;
       font-size: 18px;
       line-height: 1.65;
+      display: inline-block;
     }
     .type-ref-main {
       flex: 1;
@@ -328,14 +338,16 @@
     }
     .type-sentence-inner {
       min-height: 2.5em;
-      padding: 0 0 2px;
+      padding: 2px 0 4px;
     }
     .type-input-row {
       display: flex;
       align-items: flex-start;
       gap: var(--type-gutter-gap);
-      max-width: 720px;
+      width: 100%;
+      max-width: none;
       padding: 0;
+      box-sizing: border-box;
     }
     .type-input-avatars {
       flex-shrink: 0;
@@ -390,8 +402,11 @@
       display: flex;
       align-items: flex-start;
       gap: var(--type-gutter-gap);
-      max-width: 720px;
+      width: 100%;
+      max-width: none;
       margin: 0 0 10px;
+      padding: 0;
+      box-sizing: border-box;
       animation: fadeIn 0.15s ease;
     }
     .done-passage-gutter {
@@ -420,8 +435,22 @@
       display: flex; gap: 16px; margin-top: 0; font-size: 13px;
       color: var(--text-muted); position: relative; z-index: 1; pointer-events: none;
       padding-left: calc(var(--type-gutter) + var(--type-gutter-gap));
+      width: 100%;
+      box-sizing: border-box;
     }
     .stats-row strong { color: var(--text); font-weight: 600; }
+
+    /* ─── Room view: 타이핑 열 좌우 정렬(반응형에서 본문·입력·완료 문단 동일 inset) ─── */
+    #roomView #donePassages {
+      max-width: 720px;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0 var(--type-stack-pad-x);
+    }
+    #roomView {
+      min-width: 0;
+      overflow-x: hidden;
+    }
 
     /* ─── Daily ranking (Notion DB view) ─── */
     .db-view { max-width: 720px; margin-top: 8px; }
