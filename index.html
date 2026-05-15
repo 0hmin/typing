@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>강의 노트 · 워크스페이스</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="firebase-config.js"></script>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --sidebar: #f7f6f3;
+      --text: #37352f;
+      --text-muted: rgba(55, 53, 47, 0.5);
+      --border: rgba(55, 53, 47, 0.09);
+      --hover: rgba(55, 53, 47, 0.08);
+      --accent-blue: #2383e2;
+      --callout-bg: rgba(241, 241, 239, 0.6);
+      --error: #eb5757;
+      --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
+      --type-gutter: 28px;
+      --type-gutter-gap: 10px;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%;
+      font-family: var(--font); font-size: 14px;
+      color: var(--text); background: var(--bg);
+    }
+    button { font-family: inherit; cursor: pointer; border: none; background: transparent; color: inherit; }
+    .hidden { display: none !important; }
+
+    /* ─── Layout ─── */
+    .app { display: flex; height: 100%; min-height: 100vh; }
+
+    /* ─── Sidebar ─── */
+    .sidebar {
+      width: 240px; flex-shrink: 0;
+      background: var(--sidebar); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 8px 4px;
+      overflow-y: auto;
+    }
+    .workspace-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 8px; font-weight: 600; font-size: 13px; border-radius: 4px;
+    }
+    .workspace-row:hover { background: var(--hover); }
+    .ws-icon {
+      width: 20px; height: 20px; border-radius: 4px;
+      background: linear-gradient(135deg, #667eea, #764ba2); flex-shrink: 0;
+    }
+    .nav-section-title {
+      padding: 6px 12px 4px; font-size: 11px; font-weight: 500;
+      color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;
+      margin-top: 4px;
+    }
+    .course-list { flex: 1; overflow-y: auto; }
+    .nav-item {
+      display: flex; align-items: flex-start; gap: 6px;
+      padding: 5px 8px; margin: 1px 4px; border-radius: 4px;
+      font-size: 14px; color: var(--text); text-align: left;
+      width: calc(100% - 8px); line-height: 1.35;
+    }
+    .nav-item:hover { background: var(--hover); }
+    .nav-item.active { background: var(--hover); font-weight: 500; }
+    .nav-icon { opacity: 0.5; font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; margin-top: 1px; }
+    .nav-item-text { min-width: 0; }
+    .nav-item-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .nav-item-sub { display: block; font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .no-courses-msg {
+      padding: 12px; font-size: 12px; color: var(--text-muted); line-height: 1.5;
+    }
+    .search-wrap { padding: 4px 8px 2px; }
+    .search-input {
+      width: 100%; padding: 6px 8px 6px 28px; font-size: 13px;
+      border: 1px solid var(--border); border-radius: 4px;
+      background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='rgba(55,53,47,0.4)' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.868-3.834zm-5.242.156a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z'/%3E%3C/svg%3E") 8px center no-repeat;
+      font-family: inherit; color: var(--text);
+    }
+    .search-input:focus { outline: none; box-shadow: inset 0 0 0 1px var(--accent-blue); }
+    .search-input::placeholder { color: var(--text-muted); }
+    .nav-section-divider {
+      height: 1px; background: var(--border); margin: 6px 12px;
+    }
+    .nav-item { position: relative; }
+    .pin-btn {
+      position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+      font-size: 13px; padding: 2px 4px; border-radius: 3px;
+      color: var(--text-muted); opacity: 0; transition: opacity 0.1s;
+      line-height: 1; z-index: 1;
+    }
+    .nav-item:hover .pin-btn { opacity: 1; }
+    .pin-btn:hover { background: var(--hover); }
+    .pin-btn.pinned { opacity: 1; color: #dfab01; }
+    .import-main {
+      max-width: 720px; margin: 0 0 8px;
+    }
+    .import-main-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 4px; font-size: 13px;
+      color: var(--text-muted); border: 1px dashed var(--border);
+      background: var(--bg); transition: background 0.1s;
+    }
+    .import-main-btn:hover { background: var(--hover); color: var(--text); border-style: solid; }
+    .sidebar-footer {
+      margin-top: auto; padding: 8px; font-size: 11px; color: var(--text-muted);
+      border-top: 1px solid var(--border); flex-shrink: 0;
+    }
+
+    /* ─── Main column ─── */
+    .main-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .main-body { flex: 1; display: flex; min-height: 0; }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 56px; padding: 0 16px;
+      border-bottom: 1px solid var(--border); background: var(--bg); flex-shrink: 0;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 4px; min-width: 0; }
+    .breadcrumb { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .breadcrumb span { color: var(--text-muted); }
+    .topbar-right { display: flex; align-items: center; gap: 4px; }
+    .topbar-online { font-size: 12px; color: var(--text-muted); margin-right: 4px; white-space: nowrap; }
+    .tb-btn { padding: 6px 10px; border-radius: 4px; font-size: 13px; color: var(--text-muted); }
+    .tb-btn:hover { background: var(--hover); color: var(--text); }
+    .tb-btn.primary { background: var(--accent-blue); color: #fff; font-weight: 500; }
+    .tb-btn.primary:hover { filter: brightness(1.05); }
+
+    /* ─── Avatars (Notion-style) ─── */
+    .avatar-list { display: flex; align-items: center; margin-right: 8px; }
+    .avatar {
+      width: 24px; height: 24px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600; color: #fff;
+      margin-left: -4px; border: 2px solid var(--bg);
+      flex-shrink: 0; position: relative;
+    }
+    .avatar:first-child { margin-left: 0; }
+    .avatar-overflow {
+      background: rgba(55,53,47,0.15); color: var(--text); font-size: 10px;
+    }
+
+    /* ─── Content ─── */
+    .content-scroll { flex: 1; overflow-y: auto; padding: 0 96px 120px; min-width: 0; }
+    @media (max-width: 900px) { .content-scroll { padding: 0 24px 80px; } .sidebar { width: 200px; } }
+    @media (max-width: 640px) { .sidebar { display: none; } }
+    .page-title { font-size: 40px; font-weight: 700; line-height: 1.2; margin: 48px 0 4px; letter-spacing: -0.02em; }
+    .page-meta { color: var(--text-muted); font-size: 12px; margin-bottom: 32px; }
+
+    /* ─── Hero (Home) — green band + profile straddling edge ─── */
+    .hero {
+      max-width: none;
+      margin: 0 0 8px;
+      text-align: left;
+    }
+    .hero-stack {
+      position: relative;
+      margin-left: -96px;
+      margin-right: -96px;
+      height: 168px;
+    }
+    @media (max-width: 900px) {
+      .hero-stack {
+        margin-left: -24px;
+        margin-right: -24px;
+      }
+    }
+    .hero-banner {
+      position: absolute;
+      inset: 0;
+      background: #d4f2d4;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+    .hero-cover {
+      position: absolute;
+      left: 96px;
+      bottom: 0;
+      transform: translateY(50%);
+      width: 120px;
+      height: auto;
+      object-fit: contain;
+      display: block;
+      z-index: 2;
+      filter: drop-shadow(0 2px 10px rgba(15, 15, 15, 0.15));
+    }
+    @media (max-width: 900px) {
+      .hero-cover { left: 24px; }
+    }
+    .hero-title-block {
+      max-width: 720px;
+      padding-top: 92px;
+    }
+    .hero-title {
+      font-size: 40px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin: 0;
+      color: var(--text);
+    }
+    .hero-divider {
+      max-width: 720px;
+      margin: 32px 0 32px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ─── Notion property panel ─── */
+    .prop-panel { max-width: 720px; margin: 8px 0 6px; }
+    .prop-row {
+      display: flex; align-items: center; min-height: 32px;
+      padding: 4px 0; gap: 4px;
+    }
+    .prop-row:hover { background: var(--hover); border-radius: 4px; margin: 0 -6px; padding: 4px 6px; }
+    .prop-label {
+      width: 80px; flex-shrink: 0; font-size: 14px; color: var(--text);
+      display: flex; align-items: center; gap: 5px;
+    }
+    .prop-label-icon { width: 16px; height: 16px; vertical-align: middle; object-fit: contain; }
+    .prop-value { flex: 1; font-size: 14px; color: var(--text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .prop-tag {
+      display: inline-flex; align-items: center; padding: 2px 8px;
+      border-radius: 3px; font-size: 12px; font-weight: 500; line-height: 1.4;
+    }
+    .prop-tag.green { background: rgba(0, 135, 107, 0.15); color: #0f7b6c; }
+    .prop-tag.blue { background: rgba(35, 131, 226, 0.15); color: #2383e2; }
+    .prop-tag.orange { background: rgba(217, 115, 13, 0.15); color: #d9730d; }
+    .prop-tag.purple { background: rgba(105, 64, 165, 0.15); color: #6940a5; }
+    .prop-tag.gray { background: rgba(55, 53, 47, 0.08); color: var(--text-muted); }
+    .prop-add {
+      font-size: 13px; color: var(--text-muted); padding: 4px 0; cursor: default;
+      opacity: 0.6;
+    }
+    .prop-divider { height: 1px; background: var(--border); margin: 6px 0 16px; max-width: 720px; }
+    .prop-avatars { display: flex; align-items: center; gap: 0; }
+    .prop-avatars .avatar { margin-left: -4px; }
+    .prop-avatars .avatar:first-child { margin-left: 0; }
+    .prop-online-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 14px; padding: 4px 0;
+    }
+    .prop-online-text { font-size: 13px; color: var(--text-muted); }
+    .callout {
+      display: flex; gap: 12px; padding: 12px 14px; border-radius: 4px;
+      background: var(--callout-bg); border: 1px solid var(--border);
+      max-width: 720px; margin: 20px 0; align-items: flex-start;
+    }
+    .callout-icon { font-size: 18px; line-height: 1.4; flex-shrink: 0; }
+    .callout-body { font-size: 14px; line-height: 1.5; }
+
+    /* ─── Fake note blocks (welcome) ─── */
+    .fake-block { margin-bottom: 10px; line-height: 1.6; max-width: 720px; color: var(--text); }
+    .fake-block.heading { font-size: 1.5em; font-weight: 600; margin-top: 24px; margin-bottom: 4px; }
+    .fake-block.bullet { padding-left: 1.5em; position: relative; }
+    .fake-block.bullet::before { content: "•"; position: absolute; left: 0.25em; color: var(--text-muted); }
+
+    /* ─── Typing stack: 지문 영역 + 입력 영역 (동일 거터로 정렬) ─── */
+    .block-label { font-size: 12px; color: var(--text-muted); margin: 28px 0 6px; max-width: 720px; }
+    .type-stack {
+      max-width: 720px;
+      position: relative;
+      outline: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .type-stack:focus-within .type-sentence-box {
+      box-shadow: inset 0 0 0 1px rgba(55, 53, 47, 0.12);
+    }
+    .type-sentence-box {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--type-gutter-gap);
+      padding: 10px 0;
+      background: rgba(55, 53, 47, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 16px;
+      line-height: 1.65;
+      letter-spacing: 0.01em;
+      color: var(--text);
+    }
+    .type-line-gutter {
+      width: var(--type-gutter);
+      flex-shrink: 0;
+      display: flex;
+      justify-content: center;
+      padding-top: 2px;
+    }
+    .type-ref-bulb {
+      flex-shrink: 0;
+      font-size: 18px;
+      line-height: 1.65;
+    }
+    .type-ref-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .type-peer-strip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      min-height: 0;
+    }
+    .type-peer-strip.type-peer-strip--aside {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 5px;
+    }
+    .type-peer-avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      flex-shrink: 0;
+      border: 2px solid var(--bg);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    .type-sentence-inner {
+      min-height: 2.5em;
+      padding: 0 0 2px;
+    }
+    .type-input-row {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--type-gutter-gap);
+      max-width: 720px;
+      padding: 0;
+    }
+    .type-input-avatars {
+      flex-shrink: 0;
+      width: var(--type-gutter);
+      padding-top: 2px;
+    }
+    .type-input-fill {
+      flex: 1;
+      min-width: 0;
+    }
+    .type-capture {
+      display: block;
+      width: 100%;
+      min-height: 1.65em;
+      margin: 0;
+      padding: 0;
+      border: none;
+      border-radius: 0;
+      resize: none;
+      background: transparent;
+      color: var(--text);
+      caret-color: var(--text);
+      font: inherit;
+      font-size: 16px;
+      line-height: 1.65;
+      letter-spacing: 0.01em;
+      box-shadow: none;
+    }
+    .type-capture:focus { outline: none; }
+    .type-capture::placeholder { color: var(--text-muted); }
+    .type-mirror {
+      white-space: pre-wrap;
+      word-break: break-word;
+      position: relative;
+      z-index: 1;
+      pointer-events: none;
+      font-size: 16px;
+      line-height: 1.65;
+      letter-spacing: 0.01em;
+      margin: 0;
+    }
+    .type-mirror .done { color: var(--text); }
+    .type-mirror .err {
+      color: var(--error);
+      text-decoration: underline wavy;
+      text-decoration-color: var(--error);
+      text-underline-offset: 2px;
+    }
+    .type-mirror .cur { background: rgba(35, 131, 226, 0.28); border-radius: 2px; }
+    .type-mirror .pending { color: var(--text-muted); }
+    .done-passage-row {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--type-gutter-gap);
+      max-width: 720px;
+      margin: 0 0 10px;
+      animation: fadeIn 0.15s ease;
+    }
+    .done-passage-gutter {
+      width: var(--type-gutter);
+      flex-shrink: 0;
+      padding-top: 2px;
+    }
+    .done-block {
+      flex: 1;
+      min-width: 0;
+      margin: 0;
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.65;
+      letter-spacing: 0.01em;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .enter-hint {
+      display: inline-block; font-size: 11px; color: var(--text-muted);
+      background: rgba(55, 53, 47, 0.06); border-radius: 3px;
+      padding: 1px 6px; margin-left: 8px; vertical-align: middle;
+    }
+    .stats-row {
+      display: flex; gap: 16px; margin-top: 0; font-size: 13px;
+      color: var(--text-muted); position: relative; z-index: 1; pointer-events: none;
+      padding-left: calc(var(--type-gutter) + var(--type-gutter-gap));
+    }
+    .stats-row strong { color: var(--text); font-weight: 600; }
+
+    /* ─── Daily ranking (Notion DB view) ─── */
+    .db-view { max-width: 720px; margin-top: 8px; }
+    #welcomeView .callout { margin-top: 8px; margin-bottom: 0; }
+    #welcomeView .db-view { margin-top: 28px; }
+    .db-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 0; margin-bottom: 2px;
+    }
+    .db-title { font-size: 18px; font-weight: 600; }
+    .db-count { font-size: 12px; color: var(--text-muted); background: rgba(55,53,47,0.06); border-radius: 3px; padding: 2px 6px; }
+    .db-table-wrap {
+      border: 1px solid var(--border); border-radius: 4px; overflow: hidden;
+    }
+    table.db-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .db-table th {
+      padding: 6px 12px; text-align: left; font-weight: 500;
+      color: var(--text-muted); font-size: 12px;
+      background: rgba(55, 53, 47, 0.03);
+      border-bottom: 1px solid var(--border);
+    }
+    .db-table td {
+      padding: 8px 12px; border-bottom: 1px solid var(--border);
+    }
+    .db-table tr:last-child td { border-bottom: none; }
+    .db-th-num { width: 36px; }
+    .db-table .db-wpm { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .db-table .db-course {
+      display: inline-block; padding: 1px 6px; border-radius: 3px;
+      font-size: 12px; background: rgba(55,53,47,0.06); color: var(--text);
+    }
+    .db-table .db-skip { font-variant-numeric: tabular-nums; color: var(--text-muted); }
+    .db-empty { color: var(--text-muted); padding: 24px 12px !important; text-align: center; }
+
+    /* ─── Right panel (Notion comment card style) ─── */
+    .right-panel {
+      width: 320px; flex-shrink: 0;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      overflow-y: auto;
+    }
+    @media (max-width: 960px) { .right-panel { width: 260px; } }
+    @media (max-width: 640px) { .right-panel { display: none; } }
+    .rp-header {
+      padding: 14px 20px 10px; flex-shrink: 0;
+    }
+    .rp-title { font-size: 14px; font-weight: 600; color: var(--text); }
+    .rp-list { flex: 1; overflow-y: auto; padding: 0 12px 12px; }
+
+    .rp-card {
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px 14px; margin-bottom: 8px;
+      background: var(--bg); transition: box-shadow 0.15s;
+    }
+    .rp-card:hover { box-shadow: 0 1px 6px rgba(15,15,15,0.08); }
+    .rp-card-head {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+    }
+    .rp-avatar {
+      width: 24px; height: 24px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600; color: #fff; flex-shrink: 0;
+    }
+    .rp-name { font-size: 13px; font-weight: 500; color: var(--text); }
+    .rp-rank { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+    .rp-body {
+      display: flex; align-items: baseline; gap: 8px;
+      padding-left: 32px;
+    }
+    .rp-wpm {
+      font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums;
+      color: var(--text); line-height: 1;
+    }
+    .rp-wpm-label { font-size: 12px; color: var(--text-muted); }
+    .rp-acc { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+
+    .rp-empty { padding: 24px 16px; font-size: 13px; color: var(--text-muted); text-align: center; }
+
+    /* ─── Modal ─── */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(15, 15, 15, 0.45);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; padding: 16px;
+    }
+    .modal {
+      background: var(--bg); border-radius: 8px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      width: 100%; max-width: 400px; padding: 24px; border: 1px solid var(--border);
+    }
+    .modal h2 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
+    .modal p { margin: 0 0 16px; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+    .modal input {
+      width: 100%; padding: 10px 12px; font-size: 14px;
+      border: 1px solid var(--border); border-radius: 4px;
+      font-family: inherit; margin-bottom: 12px;
+    }
+    .modal input:focus { outline: none; box-shadow: inset 0 0 0 1px var(--accent-blue); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .modal-actions button { padding: 8px 14px; border-radius: 4px; font-size: 13px; }
+    .modal-actions .cancel { color: var(--text-muted); }
+    .modal-actions .cancel:hover { background: var(--hover); }
+    .modal-actions .submit { background: var(--accent-blue); color: #fff; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <!-- ─── Nickname Modal ─── -->
+  <div id="nickOverlay" class="overlay hidden">
+    <div class="modal">
+      <h2 id="nickModalTitle">닉네임 설정</h2>
+      <p id="nickModalDesc">이 브라우저에서 사용할 닉네임을 입력하세요.</p>
+      <input id="nickInput" type="text" maxlength="24" placeholder="닉네임" autocomplete="off" />
+      <div class="modal-actions">
+        <button type="button" class="cancel" id="nickCancel">취소</button>
+        <button type="button" class="submit" id="nickJoin">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="fileInput" accept=".pdf,.txt,.md,text/plain" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" />
+
+  <div class="app">
+    <!-- ─── Sidebar ─── -->
+    <aside class="sidebar">
+      <div class="workspace-row">
+        <span class="ws-icon"></span>
+        <span>대학교 워크스페이스</span>
+      </div>
+      <div class="search-wrap">
+        <input type="text" class="search-input" id="searchInput" placeholder="수업 검색…" autocomplete="off" />
+      </div>
+      <div id="pinnedSection" class="hidden">
+        <div class="nav-section-title">즐겨찾기</div>
+        <div id="pinnedList"></div>
+        <div class="nav-section-divider"></div>
+      </div>
+      <div class="nav-section-title" id="sidebarTitle">현재 수업</div>
+      <div class="course-list" id="courseList"></div>
+      <div class="sidebar-footer" id="timeInfo"></div>
+    </aside>
+
+    <!-- ─── Main ─── -->
+    <div class="main-col">
+      <header class="topbar">
+        <div class="topbar-left">
+          <span class="breadcrumb" id="breadcrumb">강의 노트</span>
+        </div>
+        <div class="topbar-right">
+          <div class="avatar-list" id="avatarList"></div>
+          <span class="topbar-online" id="topbarOnline">0명이 딴짓중</span>
+          <button type="button" class="tb-btn">⋯</button>
+          <button type="button" class="tb-btn primary">Share</button>
+        </div>
+      </header>
+
+      <div class="main-body">
+        <main class="content-scroll">
+          <!-- Welcome / Home (no room) -->
+          <div id="welcomeView">
+            <div class="hero">
+              <div class="hero-stack">
+                <div class="hero-banner" aria-hidden="true"></div>
+                <img class="hero-cover" src="assets/profile.png" alt="" />
+              </div>
+              <div class="hero-title-block">
+                <h1 class="hero-title">WHERE 딴짓 BEGINS</h1>
+              </div>
+            </div>
+
+            <div class="hero-divider"></div>
+
+            <div class="callout" style="margin-top:8px">
+              <span class="callout-icon">💡</span>
+              <div class="callout-body">왼쪽 사이드바에서 현재 진행 중인 수업을 클릭하면 타이핑 세션에 참여할 수 있습니다.</div>
+            </div>
+
+            <div class="db-view">
+              <div class="db-header">
+                <span class="db-title">🏆 오늘의 랭킹 (타자 속도)</span>
+                <span class="db-count" id="dailyCount">0건</span>
+              </div>
+              <div class="db-table-wrap">
+                <table class="db-table">
+                  <thead>
+                    <tr>
+                      <th class="db-th-num">#</th>
+                      <th>닉네임</th>
+                      <th>타자 속도</th>
+                      <th>수업</th>
+                      <th>땡땡이 횟수</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dailyRankBody">
+                    <tr><td colspan="5" class="db-empty">아직 오늘의 기록이 없습니다.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="db-view">
+              <div class="db-header">
+                <span class="db-title">🚶 오늘의 랭킹 (땡땡이 횟수)</span>
+                <span class="db-count" id="dailySkipCount">0건</span>
+              </div>
+              <div class="db-table-wrap">
+                <table class="db-table">
+                  <thead>
+                    <tr>
+                      <th class="db-th-num">#</th>
+                      <th>닉네임</th>
+                      <th>땡땡이 횟수</th>
+                      <th>타자 속도</th>
+                      <th>수업</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dailySkipBody">
+                    <tr><td colspan="5" class="db-empty">아직 오늘의 기록이 없습니다.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Room view -->
+          <div id="roomView" class="hidden">
+            <h1 class="page-title" id="roomTitle"></h1>
+
+            <div class="prop-panel">
+              <div class="prop-row">
+                <span class="prop-label"><img class="prop-label-icon" src="assets/tag.png" alt=""> 분류</span>
+                <span class="prop-value"><span class="prop-tag green" id="propCategory">교양</span></span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label"><img class="prop-label-icon" src="assets/calendar.png" alt=""> 날짜</span>
+                <span class="prop-value" id="propDate"></span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label"><img class="prop-label-icon" src="assets/type.png" alt=""> 설명</span>
+                <span class="prop-value" id="propDesc"></span>
+              </div>
+              <div class="prop-row">
+                <span class="prop-label"><img class="prop-label-icon" src="assets/attatchment.png" alt=""> 자료</span>
+                <span class="prop-value">
+                  <button type="button" class="import-main-btn" id="importMainBtn">
+                    <span>↑</span>
+                    <span>Import · 강의자료</span>
+                  </button>
+                </span>
+              </div>
+              <div class="prop-online-row">
+                <span class="prop-avatars" id="propAvatars"></span>
+                <span class="prop-online-text" id="roomOnline">0명이 딴짓중</span>
+              </div>
+              <div class="prop-add">+ Add a property</div>
+              <div class="prop-divider"></div>
+            </div>
+
+            <div class="callout" id="statusCallout">
+              <span class="callout-icon">💡</span>
+              <div class="callout-body" id="statusText">타이핑 블록을 클릭하면 시작됩니다.</div>
+            </div>
+
+            <div id="donePassages"></div>
+
+            <div class="block-label" id="blockLabel">Text</div>
+            <div class="type-stack" id="typingHost" tabindex="-1">
+              <div class="type-sentence-box" aria-label="지문">
+                <div class="type-line-gutter" aria-hidden="true">
+                  <span class="type-ref-bulb">💡</span>
+                </div>
+                <div class="type-ref-main">
+                  <div class="type-sentence-inner">
+                    <div class="type-mirror" id="passageEl" aria-live="polite"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="type-input-row">
+                <div class="type-input-avatars" id="peerTypingStripWrap" aria-hidden="true">
+                  <div class="type-peer-strip type-peer-strip--aside" id="peerTypingStrip"></div>
+                </div>
+                <div class="type-input-fill">
+                  <textarea
+                    id="typeCapture"
+                    class="type-capture"
+                    autocomplete="off" autocorrect="off" autocapitalize="off"
+                    spellcheck="false" rows="3" aria-label="타이핑 입력"
+                    placeholder="여기에 입력하세요."
+                    readonly
+                  ></textarea>
+                </div>
+              </div>
+              <div class="stats-row">
+                <span>WPM <strong id="wpmEl">0</strong></span>
+                <span>정확도 <strong id="accEl">100</strong>%</span>
+                <span>문단 <strong id="progEl">1</strong> / <strong id="totalEl">1</strong></span>
+              </div>
+            </div>
+
+          </div>
+        </main>
+
+        <!-- ─── Right panel (Notion comment style) ─── -->
+        <aside class="right-panel hidden" id="rightPanel">
+          <div class="rp-header">
+            <span class="rp-title">Live ranking</span>
+          </div>
+          <div class="rp-list" id="rankList"></div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    /* ================================================================
+       Constants
+       ================================================================ */
+    var PERIODS = [
+      { p: 1, sh: 8,  sm: 0,  eh: 9,  em: 30 },
+      { p: 2, sh: 9,  sm: 30, eh: 11, em: 0  },
+      { p: 3, sh: 11, sm: 0,  eh: 12, em: 30 },
+      { p: 4, sh: 12, sm: 30, eh: 14, em: 0  },
+      { p: 5, sh: 14, sm: 0,  eh: 15, em: 30 },
+      { p: 6, sh: 15, sm: 30, eh: 17, em: 0  },
+      { p: 7, sh: 17, sm: 0,  eh: 18, em: 30 },
+    ];
+    var DAY_MAP = { '월': 1, '화': 2, '수': 3, '목': 4, '금': 5, '토': 6, '일': 0 };
+    var DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
+    var AVATAR_COLORS = ['#e03e3e','#d9730d','#dfab01','#0f7b6c','#2383e2','#6940a5','#ad1a72'];
+    var DEFAULT_PASSAGES = [
+      "딴짓의 역사와 문화적 맥락 인류는 노동과 의무가 존재한 순간부터 딴짓을 해왔다. 고대 이집트 파피루스 문서에는 피라미드 건설 현장에서 주사위 놀이를 하다 적발된 노동자 기록이 남아 있으며 이는 딴짓의 역사가 문명의 역사와 그 궤를 같이함을 보여준다.",
+      "중세 유럽의 수도원에서는 필경사들이 성경을 필사하는 도중 여백에 낙서를 남겼다. 토끼가 기사를 사냥하는 그림, 괴물이 춤추는 장면 등 이른바 마지널리아라 불리는 이 낙서들은 당대 수도사들의 딴짓 욕구가 얼마나 강렬했는지를 증명하는 역사적 사료로 평가받는다.",
+      "산업혁명 이후 공장 노동자들은 기계 소음에 맞춰 노래를 흥얼거리거나 옆 동료와 잡담을 나누는 방식으로 단조로운 반복 노동을 버텨냈다. 경영학자들은 이러한 행동이 생산성을 저해하기는커녕 오히려 노동자의 번아웃을 방지하는 기능을 했다고 분석한다.",
+      "20세기 학교 교육이 보편화되면서 딴짓은 새로운 국면을 맞이한다. 교실이라는 밀폐된 공간에서 학생들은 책상 아래 소설을 숨겨 읽거나 공책에 만화를 그리는 등 선생님의 시선을 피한 정교한 딴짓 기술을 발전시켰다.",
+      "심리학자 산디 만은 직장인의 약 91퍼센트가 회의 중 딴짓을 한 경험이 있다고 보고하였다. 흥미롭게도 연구 결과에 따르면 적당한 딴짓은 뇌의 디폴트 모드 네트워크를 활성화시켜 창의적 사고와 문제 해결 능력을 향상시키는 것으로 나타났다.",
+      "스마트폰의 등장은 딴짓의 패러다임을 완전히 바꾸어 놓았다. 손바닥 안에 들어온 무한한 콘텐츠는 딴짓을 더욱 정교하고 은밀하게 만들었으며 현대인의 평균 집중 지속 시간은 2000년 12초에서 2015년 8초로 감소하였다.",
+      "일부 진보적 교육학자들은 딴짓을 억압의 대상이 아닌 자기 조절 능력의 표현으로 바라봐야 한다고 주장한다. 학습자가 스스로 집중과 이완의 리듬을 조절하는 능력이야말로 평생 학습 사회에서 요구되는 핵심 역량이라는 것이다.",
+      "결론적으로 딴짓은 인간의 본능적 자기 보호 기제이자 창의성의 원천이며 때로는 지루한 현실을 견디게 해주는 유일한 탈출구이다. 지금 이 순간 여러분이 하고 있는 행위 역시 그 유구한 역사의 일부임을 기억하라.",
+    ];
+
+    /* ================================================================
+       DOM refs
+       ================================================================ */
+    var $id = function (id) { return document.getElementById(id); };
+    var nickOverlay   = $id('nickOverlay');
+    var nickModalTitle= $id('nickModalTitle');
+    var nickModalDesc = $id('nickModalDesc');
+    var nickInput     = $id('nickInput');
+    var nickJoin      = $id('nickJoin');
+    var nickCancel    = $id('nickCancel');
+    var fileInput     = $id('fileInput');
+    var searchInput   = $id('searchInput');
+    var pinnedSection = $id('pinnedSection');
+    var pinnedListEl  = $id('pinnedList');
+    var sidebarTitle  = $id('sidebarTitle');
+    var courseListEl  = $id('courseList');
+    var importMainBtn = $id('importMainBtn');
+    var timeInfo      = $id('timeInfo');
+    var breadcrumb    = $id('breadcrumb');
+    var avatarList    = $id('avatarList');
+    var welcomeView   = $id('welcomeView');
+    var roomView      = $id('roomView');
+    var roomTitle     = $id('roomTitle');
+    var propCategory  = $id('propCategory');
+    var propDate      = $id('propDate');
+    var propDesc      = $id('propDesc');
+    var propAvatars   = $id('propAvatars');
+    var roomOnline    = $id('roomOnline');
+    var topbarOnline  = $id('topbarOnline');
+    var statusText    = $id('statusText');
+    var donePassagesEl= $id('donePassages');
+    var blockLabel    = $id('blockLabel');
+    var typingHost    = $id('typingHost');
+    var ta            = $id('typeCapture');
+    var passageEl     = $id('passageEl');
+    var peerTypingStrip = $id('peerTypingStrip');
+    var wpmEl         = $id('wpmEl');
+    var accEl         = $id('accEl');
+    var progEl        = $id('progEl');
+    var totalEl       = $id('totalEl');
+    var rightPanel    = $id('rightPanel');
+    var rankList      = $id('rankList');
+    var dailyRankBody = $id('dailyRankBody');
+    var dailyCount    = $id('dailyCount');
+    var dailySkipBody = $id('dailySkipBody');
+    var dailySkipCount = $id('dailySkipCount');
+    var workspaceRow  = document.querySelector('.workspace-row');
+
+    /* ================================================================
+       State
+       ================================================================ */
+    var allCourses = [];
+    var currentCourse = null;
+    var searchQuery = '';
+    var nickname = sessionStorage.getItem('nt_nick') || '';
+    var playerId = sessionStorage.getItem('nt_player_id');
+    if (!playerId) {
+      playerId = 'p_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      sessionStorage.setItem('nt_player_id', playerId);
+    }
+
+    function pinnedStorageKey() {
+      return 'nt_pinned_' + playerId;
+    }
+
+    function loadPinnedIds() {
+      var key = pinnedStorageKey();
+      var raw = localStorage.getItem(key);
+      if (raw) {
+        try {
+          var arr = JSON.parse(raw);
+          return Array.isArray(arr) ? arr : [];
+        } catch (e) { return []; }
+      }
+      var legacy = localStorage.getItem('nt_pinned');
+      if (legacy) {
+        try {
+          var oldArr = JSON.parse(legacy);
+          if (Array.isArray(oldArr) && oldArr.length) {
+            localStorage.setItem(key, JSON.stringify(oldArr));
+          }
+          return Array.isArray(oldArr) ? oldArr : [];
+        } catch (e2) { return []; }
+      }
+      return [];
+    }
+
+    var pinnedIds = loadPinnedIds();
+    var onlineUid = sessionStorage.getItem('nt_online_uid');
+    if (!onlineUid) {
+      onlineUid = 'u_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      sessionStorage.setItem('nt_online_uid', onlineUid);
+    }
+
+    var db = null;
+    var firebaseOk = false;
+    var playerRef = null;
+    var playersListener = null;
+    var materialListener = null;
+    var broadcastTimer = null;
+    var dailyListener = null;
+    var joinedRoomsToday = {};
+    var lastOnlineUsersData = null;
+
+    function todayKey() {
+      var d = new Date();
+      return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    }
+
+    var passages = DEFAULT_PASSAGES.slice();
+    var passageIndex = 0;
+    var userInput = '';
+    var sessionStart = null;
+    var sessionTotalCorrect = 0;
+    var sessionTotalChars = 0;
+    var lastBroadcast = 0;
+    var lastPlayersData = null;
+    var composing = false;
+    var passageComplete = false;
+
+    /* ================================================================
+       Firebase
+       ================================================================ */
+    function initFirebase() {
+      if (typeof firebaseConfig === 'undefined' || !firebaseConfig.databaseURL || !firebaseConfig.apiKey) return;
+      try {
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        db = firebase.database();
+        firebaseOk = true;
+      } catch (e) { console.warn('Firebase init failed', e); }
+    }
+    initFirebase();
+
+    /* ================================================================
+       PDF.js
+       ================================================================ */
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    /* ================================================================
+       Time / Course helpers
+       ================================================================ */
+    function currentPeriodForDay(jsDay, h, m) {
+      var t = h * 60 + m;
+      for (var i = 0; i < PERIODS.length; i++) {
+        var pr = PERIODS[i];
+        if (t >= pr.sh * 60 + pr.sm && t <= pr.eh * 60 + pr.em) return pr.p;
+      }
+      return -1;
+    }
+
+    function parseSchedule(str) {
+      var tokens = (str || '').split(/\s+/);
+      var slots = [];
+      for (var i = 0; i < tokens.length - 1; i += 2) {
+        var day = DAY_MAP[tokens[i]];
+        var period = parseInt(tokens[i + 1], 10);
+        if (day !== undefined && !isNaN(period)) slots.push({ day: day, period: period });
+      }
+      return slots;
+    }
+
+    function periodLabel(p) {
+      for (var i = 0; i < PERIODS.length; i++) {
+        if (PERIODS[i].p === p) {
+          var pr = PERIODS[i];
+          return p + '교시 (' + pad2(pr.sh) + ':' + pad2(pr.sm) + '~' + pad2(pr.eh) + ':' + pad2(pr.em) + ')';
+        }
+      }
+      return p + '교시';
+    }
+    function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+    /** 수업명: 한글(ㄱㄴㄷ) 먼저, 이어서 라틴(abc), 그 외 */
+    function courseTitleSortKey(name) {
+      var s = (name || '').trim();
+      if (!s) return { group: 3, key: '' };
+      var ch = s[0];
+      var code = ch.charCodeAt(0);
+      var isHangulSyllable = code >= 0xAC00 && code <= 0xD7AF;
+      var isHangulJamo = (code >= 0x1100 && code <= 0x11FF) || (code >= 0x3131 && code <= 0x318E);
+      if (isHangulSyllable || isHangulJamo) return { group: 0, key: s };
+      if (/[A-Za-z]/.test(ch)) return { group: 1, key: s };
+      return { group: 2, key: s };
+    }
+
+    function compareCourseKoThenEn(a, b) {
+      var na = a['교과목명'];
+      var nb = b['교과목명'];
+      var ka = courseTitleSortKey(na);
+      var kb = courseTitleSortKey(nb);
+      if (ka.group !== kb.group) return ka.group - kb.group;
+      if (ka.group === 0) return ka.key.localeCompare(kb.key, 'ko');
+      if (ka.group === 1) return ka.key.toLowerCase().localeCompare(kb.key.toLowerCase(), 'en');
+      return ka.key.localeCompare(kb.key, 'ko');
+    }
+
+    function filterActiveCourses(courses) {
+      var now = new Date();
+      var jsDay = now.getDay();
+      var h = now.getHours();
+      var m = now.getMinutes();
+      var curPeriod = currentPeriodForDay(jsDay, h, m);
+      if (curPeriod < 0) return [];
+      return courses.filter(function (c) {
+        var slots = parseSchedule(c['시간대']);
+        for (var i = 0; i < slots.length; i++) {
+          if (slots[i].day === jsDay && slots[i].period === curPeriod) return true;
+        }
+        return false;
+      });
+    }
+
+    function updateTimeInfo() {
+      var now = new Date();
+      var jsDay = now.getDay();
+      var h = now.getHours();
+      var m = now.getMinutes();
+      var curPeriod = currentPeriodForDay(jsDay, h, m);
+      var dayStr = DAY_NAMES[jsDay] + '요일';
+      if (curPeriod > 0) {
+        timeInfo.textContent = dayStr + ' · ' + periodLabel(curPeriod);
+        sidebarTitle.textContent = curPeriod + '교시 수업';
+      } else {
+        timeInfo.textContent = dayStr + ' · 수업 시간 외';
+        sidebarTitle.textContent = '현재 수업';
+      }
+    }
+
+    /* ================================================================
+       Favorites (pin)
+       ================================================================ */
+    function isPinned(id) { return pinnedIds.indexOf(id) !== -1; }
+    function togglePin(id) {
+      var idx = pinnedIds.indexOf(id);
+      if (idx === -1) pinnedIds.push(id);
+      else pinnedIds.splice(idx, 1);
+      localStorage.setItem(pinnedStorageKey(), JSON.stringify(pinnedIds));
+      renderFullSidebar();
+    }
+
+    /* ================================================================
+       Sidebar rendering
+       ================================================================ */
+    function makeCourseBtn(c) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'nav-item' + (currentCourse && currentCourse.id === c.id ? ' active' : '');
+      btn.dataset.courseId = c.id;
+      var pinClass = isPinned(c.id) ? 'pin-btn pinned' : 'pin-btn';
+      var pinChar = isPinned(c.id) ? '★' : '☆';
+      btn.innerHTML =
+        '<span class="nav-icon">📄</span>' +
+        '<span class="nav-item-text">' +
+          '<span class="nav-item-title">' + esc(c['교과목명']) + '</span>' +
+          '<span class="nav-item-sub">' + esc(c['개설학과']) + ' · ' + esc(c['시간대']) + '</span>' +
+        '</span>' +
+        '<span class="' + pinClass + '" data-pin-id="' + esc(c.id) + '">' + pinChar + '</span>';
+      btn.addEventListener('click', function (e) {
+        if (e.target.closest('.pin-btn')) {
+          e.stopPropagation();
+          togglePin(c.id);
+          return;
+        }
+        onCourseClick(c);
+      });
+      return btn;
+    }
+
+    function matchesSearch(c) {
+      if (!searchQuery) return true;
+      var q = searchQuery.toLowerCase();
+      return (c['교과목명'] || '').toLowerCase().indexOf(q) !== -1 ||
+             (c['개설학과'] || '').toLowerCase().indexOf(q) !== -1;
+    }
+
+    function renderFullSidebar() {
+      var pinned = pinnedIds.map(function (id) {
+        return allCourses.find(function (c) { return c.id === id; });
+      }).filter(function (c) { return c && matchesSearch(c); });
+      pinned.sort(compareCourseKoThenEn);
+
+      if (pinned.length > 0) {
+        pinnedSection.classList.remove('hidden');
+        pinnedListEl.innerHTML = '';
+        pinned.forEach(function (c) { pinnedListEl.appendChild(makeCourseBtn(c)); });
+      } else {
+        pinnedSection.classList.add('hidden');
+      }
+
+      var activeCourses = lastActive.filter(function (c) {
+        return !isPinned(c.id) && matchesSearch(c);
+      });
+      activeCourses.sort(compareCourseKoThenEn);
+      courseListEl.innerHTML = '';
+      if (activeCourses.length === 0 && pinned.length === 0) {
+        var msg = searchQuery
+          ? '검색 결과가 없습니다.'
+          : '현재 진행 중인 수업이 없습니다.<br>수업 시간에 다시 확인하세요.';
+        courseListEl.innerHTML = '<div class="no-courses-msg">' + msg + '</div>';
+      } else if (activeCourses.length === 0 && pinned.length > 0) {
+        courseListEl.innerHTML = '<div class="no-courses-msg">현재 교시에 추가 수업이 없습니다.</div>';
+      } else {
+        activeCourses.forEach(function (c) { courseListEl.appendChild(makeCourseBtn(c)); });
+      }
+    }
+
+    var lastActive = [];
+    function refreshCourses() {
+      updateTimeInfo();
+      var active = filterActiveCourses(allCourses);
+      if (currentCourse) {
+        var found = active.some(function (c) { return c.id === currentCourse.id; });
+        if (!found && !isPinned(currentCourse.id)) active.push(currentCourse);
+      }
+      active.sort(compareCourseKoThenEn);
+      lastActive = active;
+      renderFullSidebar();
+      checkMaterialExpiry();
+    }
+
+    /* ================================================================
+       Course click → join flow
+       ================================================================ */
+    var pendingCourse = null;
+
+    function openNicknameModal(opts) {
+      opts = opts || {};
+      pendingCourse = opts.pendingCourse || null;
+      nickModalTitle.textContent = opts.title || '닉네임 설정';
+      nickModalDesc.textContent = opts.desc || '이 브라우저에서 사용할 닉네임을 입력하세요.';
+      nickJoin.textContent = opts.submitLabel || '확인';
+      nickInput.value = '';
+      nickOverlay.classList.remove('hidden');
+      setTimeout(function () { nickInput.focus(); }, 50);
+    }
+
+    function onCourseClick(course) {
+      if (currentCourse && currentCourse.id === course.id) return;
+      if (!(nickname && nickname.trim())) {
+        openNicknameModal({
+          pendingCourse: course,
+          title: '닉네임이 필요합니다',
+          desc: '수업에 참여하려면 먼저 닉네임을 입력한 뒤 확인을 누르세요.',
+          submitLabel: '수업 참여',
+        });
+        return;
+      }
+      if (currentCourse) leaveRoom();
+      joinRoom(course);
+    }
+
+    nickJoin.addEventListener('click', function () {
+      var n = (nickInput.value || '').trim();
+      if (n.length < 1) return;
+      nickname = n.slice(0, 24);
+      sessionStorage.setItem('nt_nick', nickname);
+      nickOverlay.classList.add('hidden');
+      if (onlineUserRef && firebaseOk) onlineUserRef.update({ nick: nickname });
+      if (pendingCourse) {
+        if (currentCourse) leaveRoom();
+        joinRoom(pendingCourse);
+        pendingCourse = null;
+      }
+    });
+    nickCancel.addEventListener('click', function () {
+      nickOverlay.classList.add('hidden');
+      pendingCourse = null;
+    });
+    nickInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') nickJoin.click();
+    });
+
+    /* ================================================================
+       Room management
+       ================================================================ */
+    function roomPath(courseId) { return 'typing_rooms/' + courseId; }
+
+    function joinRoom(course) {
+      currentCourse = course;
+      ta.readOnly = false;
+
+      welcomeView.classList.add('hidden');
+      roomView.classList.remove('hidden');
+      rightPanel.classList.remove('hidden');
+
+      roomTitle.textContent = course['교과목명'];
+      breadcrumb.innerHTML = esc(course['개설학과']) + ' <span>/</span> ' + esc(course['교과목명']);
+
+      var now = new Date();
+      propDate.textContent = now.getFullYear() + '년 ' + (now.getMonth() + 1) + '월 ' + now.getDate() + '일';
+      propDesc.textContent = course['개설학과'] + ' · ' + course['시간대'];
+      var cat = course['교과목구분'] || '교양';
+      var tagColors = { '교양': 'green', '전선': 'blue', '전필': 'purple', '일선': 'orange' };
+      propCategory.textContent = cat;
+      propCategory.className = 'prop-tag ' + (tagColors[cat] || 'gray');
+
+      resetFullSession();
+      passages = DEFAULT_PASSAGES.slice();
+      renderPassage();
+      setStatus('수업방에 입장했습니다. 강의자료를 업로드하거나 타이핑을 시작하세요.');
+      renderFullSidebar();
+
+      if (!firebaseOk) {
+        renderRankLocal();
+        return;
+      }
+
+      var base = roomPath(course.id);
+      playerRef = db.ref(base + '/players/' + playerId);
+      playerRef.set({
+        nickname: nickname,
+        wpm: 0,
+        accuracy: 100,
+        updatedAt: Date.now(),
+        passageIndex: passageIndex,
+      });
+      playerRef.onDisconnect().remove();
+
+      joinedRoomsToday[course.id] = true;
+      updateDailyRecord(0, course['교과목명']);
+
+      playersListener = db.ref(base + '/players');
+      playersListener.on('value', function (snap) {
+        lastPlayersData = snap.val();
+        renderRankings(lastPlayersData);
+        renderAvatars(lastPlayersData);
+        if (currentCourse) renderPassage();
+      });
+
+      materialListener = db.ref(base + '/material');
+      materialListener.on('value', function (snap) {
+        var mat = snap.val();
+        if (mat && mat.passages && mat.passages.length > 0) {
+          var cleanedList = cleansePassageList(mat.passages);
+          passages = cleanedList.length ? cleanedList : mat.passages;
+          resetFullSession();
+          renderPassage();
+          setStatus(mat.uploadedBy + '님이 공유한 강의자료 (' + passages.length + '개 구간). 타이핑을 시작하세요.');
+        }
+      });
+
+      broadcastTimer = setInterval(function () {
+        if (!playerRef || !nickname) return;
+        var s = computeWpmAccuracy();
+        playerRef.update({ wpm: s.wpm, accuracy: s.accuracy, updatedAt: Date.now(), passageIndex: passageIndex });
+      }, 3000);
+
+      setTimeout(function () { ta.focus(); }, 0);
+    }
+
+    function leaveRoom() {
+      if (playerRef && firebaseOk) {
+        playerRef.remove();
+        playerRef = null;
+      }
+      if (playersListener) { playersListener.off(); playersListener = null; }
+      if (materialListener) { materialListener.off(); materialListener = null; }
+      if (broadcastTimer) { clearInterval(broadcastTimer); broadcastTimer = null; }
+      lastPlayersData = null;
+      currentCourse = null;
+      renderPeerTypingStrip();
+      renderDonePassagePeers();
+
+      ta.readOnly = true;
+      roomView.classList.add('hidden');
+      welcomeView.classList.remove('hidden');
+      rightPanel.classList.add('hidden');
+      avatarList.innerHTML = '';
+      breadcrumb.textContent = '대학교 워크스페이스';
+      renderFullSidebar();
+      renderTopbarOnlineAvatars(lastOnlineUsersData);
+    }
+
+    function renderRankLocal() {
+      rankList.innerHTML = '<div class="rp-empty">Firebase 미설정: 로컬 연습만 가능합니다.</div>';
+    }
+
+    /* ================================================================
+       Avatars (Notion-style)
+       ================================================================ */
+    function avatarColor(name) {
+      var h = 0;
+      for (var i = 0; i < name.length; i++) h = ((h << 5) - h + name.charCodeAt(i)) | 0;
+      return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+    }
+
+    function renderTopbarOnlineAvatars(data) {
+      avatarList.innerHTML = '';
+      if (currentCourse) return;
+      if (!data || typeof data !== 'object') return;
+      var keys = Object.keys(data);
+      if (!keys.length) return;
+      keys.sort();
+      var total = keys.length;
+      var show = keys.slice(0, 3);
+      show.forEach(function (uid) {
+        var o = data[uid] || {};
+        var nick = (o.nick && String(o.nick).trim()) ? String(o.nick).trim() : '';
+        var seed = nick || uid;
+        var initial = nick ? nick.charAt(0) : (uid.replace(/^u_/, '').charAt(0) || '?');
+        var d = document.createElement('div');
+        d.className = 'avatar';
+        d.style.background = avatarColor(seed);
+        d.textContent = initial;
+        d.title = nick || '접속 중';
+        avatarList.appendChild(d);
+      });
+      if (total > 3) {
+        var ov = document.createElement('div');
+        ov.className = 'avatar avatar-overflow';
+        ov.textContent = '+' + (total - 3);
+        avatarList.appendChild(ov);
+      }
+    }
+
+    function renderAvatars(playersObj) {
+      propAvatars.innerHTML = '';
+      avatarList.innerHTML = '';
+      if (!playersObj) {
+        roomOnline.textContent = '0명이 딴짓중';
+        return;
+      }
+      var stale = Date.now() - 120000;
+      var names = [];
+      Object.keys(playersObj).forEach(function (id) {
+        var o = playersObj[id];
+        if (o && o.updatedAt > stale) names.push(o.nickname || '?');
+      });
+      roomOnline.textContent = names.length + '명이 딴짓중';
+      var show = names.slice(0, 8);
+      show.forEach(function (n) {
+        var d = document.createElement('div');
+        d.className = 'avatar';
+        d.style.background = avatarColor(n);
+        d.textContent = n.charAt(0);
+        d.title = n;
+        propAvatars.appendChild(d);
+      });
+      if (names.length > 8) {
+        var ov = document.createElement('div');
+        ov.className = 'avatar avatar-overflow';
+        ov.textContent = '+' + (names.length - 8);
+        propAvatars.appendChild(ov);
+      }
+      var topShow = names.slice(0, 3);
+      topShow.forEach(function (n) {
+        var d = document.createElement('div');
+        d.className = 'avatar';
+        d.style.background = avatarColor(n);
+        d.textContent = n.charAt(0);
+        d.title = n;
+        avatarList.appendChild(d);
+      });
+      if (names.length > 3) {
+        var ov2 = document.createElement('div');
+        ov2.className = 'avatar avatar-overflow';
+        ov2.textContent = '+' + (names.length - 3);
+        avatarList.appendChild(ov2);
+      }
+    }
+
+    /* ================================================================
+       Rankings
+       ================================================================ */
+    function renderRankings(playersObj) {
+      if (!playersObj || typeof playersObj !== 'object') {
+        rankList.innerHTML = '<div class="rp-empty">아직 참가자가 없습니다.</div>';
+        return;
+      }
+      var list = [];
+      Object.keys(playersObj).forEach(function (id) {
+        var o = playersObj[id] || {};
+        list.push({ nickname: o.nickname || '익명', wpm: Number(o.wpm) || 0, accuracy: Number(o.accuracy) || 0, updatedAt: o.updatedAt || 0 });
+      });
+      var stale = Date.now() - 120000;
+      var active = list.filter(function (x) { return x.updatedAt > stale; });
+      active.sort(function (a, b) { return b.wpm !== a.wpm ? b.wpm - a.wpm : b.accuracy - a.accuracy; });
+      if (!active.length) {
+        rankList.innerHTML = '<div class="rp-empty">아직 참가자가 없습니다.</div>';
+        return;
+      }
+      rankList.innerHTML = active.map(function (row, idx) {
+        return '<div class="rp-card">' +
+          '<div class="rp-card-head">' +
+            '<div class="rp-avatar" style="background:' + avatarColor(row.nickname) + '">' + esc(row.nickname.charAt(0)) + '</div>' +
+            '<span class="rp-name">' + esc(row.nickname) + '</span>' +
+            '<span class="rp-rank">#' + (idx + 1) + '</span>' +
+          '</div>' +
+          '<div class="rp-body">' +
+            '<span class="rp-wpm">' + row.wpm + '</span>' +
+            '<span class="rp-wpm-label">WPM</span>' +
+            '<span class="rp-acc">정확도 ' + row.accuracy + '%</span>' +
+          '</div></div>';
+      }).join('');
+    }
+
+    /* ================================================================
+       Material: shared upload
+       ================================================================ */
+    importMainBtn.addEventListener('click', function () { fileInput.click(); });
+    fileInput.addEventListener('change', function () {
+      var f = fileInput.files && fileInput.files[0];
+      fileInput.value = '';
+      if (f) handleFileUpload(f);
+    });
+
+    async function handleFileUpload(file) {
+      if (!currentCourse) return;
+      var name = (file.name || '').toLowerCase();
+      try {
+        setStatus('파일을 읽는 중…');
+        var text = '';
+        if (name.endsWith('.pdf')) {
+          if (typeof pdfjsLib === 'undefined') { setStatus('PDF.js를 불러오지 못했습니다.'); return; }
+          text = await extractPdfText(file);
+        } else {
+          text = await file.text();
+        }
+        var ps = sliceIntoPassages(text);
+        if (firebaseOk) {
+          var matRef = db.ref(roomPath(currentCourse.id) + '/material');
+          await matRef.set({ passages: ps, uploadedBy: nickname, updatedAt: Date.now() });
+          setStatus('강의자료를 업로드했습니다 (' + ps.length + '개 구간). 전체 참가자에게 공유됩니다.');
+        } else {
+          passages = ps;
+          resetFullSession();
+          renderPassage();
+          setStatus('강의자료에서 ' + ps.length + '개 구간을 불러왔습니다.');
+        }
+      } catch (e) {
+        console.error(e);
+        setStatus('파일 처리 실패: 텍스트가 없는 PDF이거나 형식이 맞지 않을 수 있습니다.');
+      }
+    }
+
+    async function extractPdfText(file) {
+      var buf = await file.arrayBuffer();
+      var pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      var full = '';
+      for (var i = 1; i <= pdf.numPages; i++) {
+        var page = await pdf.getPage(i);
+        var content = await page.getTextContent();
+        full += content.items.map(function (it) { return it.str || ''; }).join(' ') + '\n\n';
+      }
+      return full;
+    }
+
+    /* ================================================================
+       Text cleaning & slicing
+       ================================================================ */
+    function cleanText(raw) {
+      var t = raw;
+      if (typeof t === 'string' && typeof t.normalize === 'function') {
+        try { t = t.normalize('NFKC'); } catch (e) { /* ignore */ }
+      }
+      t = t.replace(/[\u{1F600}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F000}-\u{1F02F}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{200D}\u{20E3}]/gu, '');
+      /* PDF·워드 Wingdings/Webdings 등 비공개 사용 영역(  등으로 보이는 불릿·기호) */
+      t = t.replace(/[\u{E000}-\u{F8FF}]+/gu, ' ');
+      t = t.replace(/\u{FFFD}+/gu, ' ');
+      t = t.replace(/\u{FEFF}/g, '');
+      /* 유니코드 기호·문장부호·수식 등 (U+2000~U+2BFF): ≡, 화살표, 박스도형 등 */
+      t = t.replace(/[\u{2000}-\u{2BFF}]+/gu, ' ');
+      /* 전각 문장부호·기호 (≡처럼 PDF에 자주 깨져 들어가는 구간) */
+      t = t.replace(/[\u{FF01}-\u{FF0F}\u{FF1A}-\u{FF20}\u{FF3B}-\u{FF40}\u{FF5B}-\u{FF65}]+/gu, ' ');
+      /* 줄바꿈 없이 연속된 특수기호(글자·숫자·한글·공백이 아닌 문자 2개 이상) */
+      t = t.replace(/(?:[^0-9A-Za-z\uAC00-\uD7A3\u3131-\u318E\s\n]){2,}/gu, ' ');
+      t = t.replace(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~\u2018\u2019\u201C\u201D\u2013\u2014\u2026\u00B7\u25CF\u25CB\u2022\u203B\u2015\u2500\u25A0\u25A1\u25B6\u25C0\u2190-\u2199\u21D0-\u21D9\u2550-\u256C\u00A7\u00A9\u00AE\u2020\u2021\u00B6\u00D7\u00F7\u2260\u2264\u2265\u221E\u2261\u2248\u2234\u2235\u222B\u221A\u03B1-\u03C9\u0391-\u03A9]+/gu, ' ');
+      t = t.replace(/\b\d+\b/g, ' ');
+      t = t.replace(/[ \t]+/g, ' ');
+      t = t.replace(/\n[ \t]*/g, '\n');
+      t = t.replace(/\n{3,}/g, '\n\n');
+      return t.trim();
+    }
+
+    /** 한 지문이 너무 길 때 ≈두 줄 분량으로 분할 (문장부호·공백 우선) */
+    var PASSAGE_MAX_CHARS = 84;
+
+    function splitPassageToApproxTwoLines(s, maxLen) {
+      maxLen = maxLen || PASSAGE_MAX_CHARS;
+      if (!s || typeof s !== 'string') return [];
+      s = s.replace(/\s+/g, ' ').trim();
+      if (!s) return [];
+      if (s.length <= maxLen) return [s];
+
+      var out = [];
+      while (s.length > maxLen) {
+        var lo = Math.max(10, Math.floor(maxLen * 0.42));
+        var cut = -1;
+        var k;
+        for (k = Math.min(maxLen, s.length - 1); k >= lo; k--) {
+          var ch = s[k];
+          if (ch === '.' || ch === '!' || ch === '?' || ch === '。' || ch === '．' || ch === '…') {
+            cut = k + 1;
+            break;
+          }
+        }
+        if (cut < 0) {
+          for (k = Math.min(maxLen, s.length - 1); k >= lo; k--) {
+            if (s[k] === ' ') { cut = k; break; }
+          }
+        }
+        if (cut < 0) cut = maxLen;
+
+        var head = s.slice(0, cut).trim();
+        s = s.slice(cut).trim();
+        if (!head.length) {
+          head = s.slice(0, maxLen).trim();
+          s = s.slice(maxLen).trim();
+        }
+        out.push(head);
+      }
+      if (s) out.push(s);
+      return out.filter(function (p) {
+        return p.replace(/\s/g, '').length >= 10;
+      });
+    }
+
+    /** Firebase 등에 저장된 지문 배열을 항상 동일 규칙으로 재정리 (예전 업로드·미전처리 보정 + 길이 분할) */
+    function cleansePassageList(list) {
+      if (!list || !list.length) return [];
+      var acc = [];
+      list.forEach(function (p) {
+        if (typeof p !== 'string') return;
+        var one = cleanText(p.replace(/\n+/g, ' '));
+        if (!one) return;
+        splitPassageToApproxTwoLines(one, PASSAGE_MAX_CHARS).forEach(function (seg) {
+          if (seg.split(/\s+/).filter(Boolean).length >= 2 || seg.replace(/\s/g, '').length >= 18) {
+            acc.push(seg);
+          }
+        });
+      });
+      return acc;
+    }
+
+    function sliceIntoPassages(raw) {
+      var cleaned = cleanText(raw);
+      if (!cleaned) return DEFAULT_PASSAGES.slice();
+      var parts = cleaned.split(/\n{2,}/).map(function (p) {
+        return p.replace(/\n+/g, ' ').trim();
+      }).filter(function (p) {
+        return p.split(/\s+/).filter(Boolean).length >= 2;
+      });
+      var merged = [];
+      var buf = '';
+      for (var i = 0; i < parts.length; i++) {
+        if ((buf + ' ' + parts[i]).trim().length < 40) {
+          buf = (buf + ' ' + parts[i]).trim();
+        } else {
+          if (buf) merged.push(buf);
+          buf = parts[i];
+        }
+      }
+      if (buf && buf.split(/\s+/).filter(Boolean).length >= 2) merged.push(buf);
+
+      var splitMerged = [];
+      for (var j = 0; j < merged.length; j++) {
+        splitMerged = splitMerged.concat(splitPassageToApproxTwoLines(merged[j], PASSAGE_MAX_CHARS));
+      }
+      merged = splitMerged;
+
+      if (merged.length > 80) merged = merged.slice(0, 80);
+      return merged.length ? merged : DEFAULT_PASSAGES.slice();
+    }
+
+    /* ================================================================
+       Typing logic
+       ================================================================ */
+    function setStatus(msg) { statusText.textContent = msg; }
+    function currentPassage() { return passages[passageIndex] || ''; }
+
+    function resetPassageInput() {
+      userInput = '';
+      passageComplete = false;
+      ta.value = '';
+    }
+
+    function resetFullSession() {
+      resetPassageInput();
+      passageIndex = 0;
+      sessionStart = null;
+      sessionTotalCorrect = 0;
+      sessionTotalChars = 0;
+      donePassagesEl.innerHTML = '';
+    }
+
+    function countCorrectInCurrent() {
+      var p = currentPassage();
+      var c = 0;
+      var n = Math.min(userInput.length, p.length);
+      for (var i = 0; i < n; i++) { if (userInput[i] === p[i]) c++; }
+      return c;
+    }
+
+    function advanceToNext() {
+      var p = currentPassage();
+      if (!p.length) return;
+      sessionTotalCorrect += countCorrectInCurrent();
+      sessionTotalChars += userInput.length;
+
+      var completedIdx = passageIndex;
+      var row = document.createElement('div');
+      row.className = 'done-passage-row';
+      row.setAttribute('data-passage-index', String(completedIdx));
+      var dg = document.createElement('div');
+      dg.className = 'done-passage-gutter';
+      var dStrip = document.createElement('div');
+      dStrip.className = 'type-peer-strip type-peer-strip--aside done-passage-peers';
+      dg.appendChild(dStrip);
+      var text = document.createElement('div');
+      text.className = 'done-block';
+      text.textContent = p;
+      row.appendChild(dg);
+      row.appendChild(text);
+      donePassagesEl.appendChild(row);
+
+      if (passageIndex + 1 >= passages.length) {
+        resetPassageInput();
+        passageIndex = 0;
+        setStatus('모든 구간을 완료했습니다! 처음부터 다시 시작합니다.');
+      } else {
+        passageIndex++;
+        resetPassageInput();
+        setStatus('문단 ' + (passageIndex + 1) + ' / ' + passages.length);
+      }
+      renderPassage();
+      updateStats();
+      typingHost.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function peerAvatarEl(nick, title) {
+      var d = document.createElement('div');
+      d.className = 'type-peer-avatar';
+      d.style.background = avatarColor(nick);
+      d.textContent = nick.charAt(0) || '?';
+      d.title = title || (nick + ' — 같은 문단 타이핑 중');
+      return d;
+    }
+
+    function renderPeerTypingStrip() {
+      if (!peerTypingStrip) return;
+      var wrap = $id('peerTypingStripWrap');
+      peerTypingStrip.innerHTML = '';
+      if (!currentCourse || !lastPlayersData) {
+        if (wrap) wrap.setAttribute('aria-hidden', 'true');
+        return;
+      }
+      var stale = Date.now() - 45000;
+      Object.keys(lastPlayersData).forEach(function (id) {
+        if (id === playerId) return;
+        var o = lastPlayersData[id] || {};
+        var idx = typeof o.passageIndex === 'number' ? o.passageIndex : -1;
+        if (idx !== passageIndex || !o.updatedAt || o.updatedAt < stale) return;
+        var nick = o.nickname || '?';
+        peerTypingStrip.appendChild(peerAvatarEl(nick, nick + ' — 같은 문단 타이핑 중'));
+      });
+      if (wrap) {
+        var empty = peerTypingStrip.children.length === 0;
+        wrap.setAttribute('aria-hidden', empty ? 'true' : 'false');
+        wrap.setAttribute('aria-label', '같은 문단을 입력 중인 참가자');
+      }
+    }
+
+    function renderDonePassagePeers() {
+      if (!donePassagesEl) return;
+      var strips = donePassagesEl.querySelectorAll('.done-passage-peers');
+      if (!currentCourse || !lastPlayersData) {
+        strips.forEach(function (s) { s.innerHTML = ''; });
+        return;
+      }
+      var stale = Date.now() - 45000;
+      strips.forEach(function (strip) {
+        strip.innerHTML = '';
+        var row = strip.closest('.done-passage-row');
+        if (!row) return;
+        var targetIdx = parseInt(row.getAttribute('data-passage-index'), 10);
+        if (isNaN(targetIdx)) return;
+        Object.keys(lastPlayersData).forEach(function (id) {
+          if (id === playerId) return;
+          var o = lastPlayersData[id] || {};
+          var idx = typeof o.passageIndex === 'number' ? o.passageIndex : -1;
+          if (idx !== targetIdx || !o.updatedAt || o.updatedAt < stale) return;
+          var nick = o.nickname || '?';
+          strip.appendChild(peerAvatarEl(nick, nick + ' — 이 문단 입력 중'));
+        });
+      });
+    }
+
+    function renderPassage() {
+      var p = currentPassage();
+      progEl.textContent = String(passageIndex + 1);
+      totalEl.textContent = String(passages.length);
+      blockLabel.textContent = '문단 ' + (passageIndex + 1) + ' / ' + passages.length;
+      if (!p.length) {
+        passageEl.innerHTML = '<span class="pending">(지문 없음)</span>';
+        renderPeerTypingStrip();
+        renderDonePassagePeers();
+        return;
+      }
+      var html = '';
+      var i = 0;
+      for (; i < userInput.length; i++) {
+        if (i < p.length) {
+          html += userInput[i] === p[i]
+            ? '<span class="done">' + esc(userInput[i]) + '</span>'
+            : '<span class="err">' + esc(userInput[i]) + '</span>';
+        } else {
+          html += '<span class="err">' + esc(userInput[i]) + '</span>';
+        }
+      }
+      if (i < p.length) {
+        html += '<span class="cur">' + esc(p[i]) + '</span>';
+        html += '<span class="pending">' + esc(p.slice(i + 1)) + '</span>';
+      }
+      if (passageComplete) html += '<span class="enter-hint">Enter ↵</span>';
+      passageEl.innerHTML = html;
+      renderPeerTypingStrip();
+      renderDonePassagePeers();
+    }
+
+    function computeWpmAccuracy() {
+      if (!sessionStart) return { wpm: 0, accuracy: 100 };
+      var elapsedMin = (Date.now() - sessionStart) / 60000;
+      if (elapsedMin < 1 / 60) return { wpm: 0, accuracy: 100 };
+      var curCorrect = countCorrectInCurrent();
+      var totalCorrect = sessionTotalCorrect + curCorrect;
+      var totalChars = sessionTotalChars + userInput.length;
+      var wpm = (totalCorrect / 5) / elapsedMin;
+      var accuracy = totalChars === 0 ? 100 : Math.round((totalCorrect / totalChars) * 1000) / 10;
+      return { wpm: Math.round(wpm * 10) / 10, accuracy: accuracy };
+    }
+
+    function updateStats() {
+      var s = computeWpmAccuracy();
+      wpmEl.textContent = String(s.wpm);
+      accEl.textContent = String(s.accuracy);
+      broadcastState(s.wpm, s.accuracy);
+    }
+
+    function broadcastState(wpm, accuracy) {
+      if (!firebaseOk || !playerRef) return;
+      var now = Date.now();
+      if (now - lastBroadcast < 400) return;
+      lastBroadcast = now;
+      playerRef.update({
+        nickname: nickname,
+        wpm: wpm,
+        accuracy: accuracy,
+        updatedAt: now,
+        passageIndex: passageIndex,
+      });
+      if (wpm > 0 && currentCourse) {
+        updateDailyRecord(wpm, currentCourse['교과목명']);
+      }
+    }
+
+    /* ================================================================
+       Input handling (textarea with IME)
+       ================================================================ */
+    function applyInputFromTa() {
+      if (!nickname || composing || !currentCourse) return;
+      var p = currentPassage();
+      if (!p.length) return;
+      var raw = ta.value;
+      if (raw.indexOf('\n') !== -1 || raw.indexOf('\r') !== -1) {
+        var stripped = raw.replace(/[\r\n]/g, '');
+        ta.value = stripped;
+        if (passageComplete) { advanceToNext(); return; }
+        userInput = stripped;
+      } else {
+        userInput = raw;
+      }
+      if (!sessionStart && userInput.length > 0) sessionStart = Date.now();
+      passageComplete = (p.length > 0 && userInput.length >= p.length);
+      renderPassage();
+      updateStats();
+    }
+
+    ta.addEventListener('compositionstart', function () { composing = true; });
+    ta.addEventListener('compositionend', function () { composing = false; applyInputFromTa(); });
+    ta.addEventListener('input', function (e) { if (!e.isComposing) applyInputFromTa(); });
+    ta.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && passageComplete && !composing) { e.preventDefault(); advanceToNext(); }
+    });
+    typingHost.addEventListener('click', function () { ta.focus(); });
+
+    /* ================================================================
+       Utility
+       ================================================================ */
+    function esc(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    /* ================================================================
+       Workspace click → Home
+       ================================================================ */
+    workspaceRow.style.cursor = 'pointer';
+    workspaceRow.addEventListener('click', function () {
+      if (currentCourse) leaveRoom();
+      breadcrumb.textContent = '대학교 워크스페이스';
+    });
+
+    /* ================================================================
+       Daily ranking
+       ================================================================ */
+    function dailyPath() { return 'daily_rankings/' + todayKey(); }
+
+    function updateDailyRecord(wpm, courseName) {
+      if (!firebaseOk || !nickname) return;
+      var ref = db.ref(dailyPath() + '/' + playerId);
+      ref.once('value').then(function (snap) {
+        var cur = snap.val() || {};
+        var update = { nickname: nickname, updatedAt: Date.now() };
+        if (!cur.bestWpm || wpm > cur.bestWpm) {
+          update.bestWpm = wpm;
+          update.bestCourse = courseName;
+        }
+        var rooms = cur.rooms || {};
+        Object.keys(joinedRoomsToday).forEach(function (k) { rooms[k] = true; });
+        update.rooms = rooms;
+        update.roomCount = Object.keys(rooms).length;
+        ref.update(update);
+      });
+    }
+
+    function subscribeDailyRanking() {
+      if (!firebaseOk) return;
+      if (dailyListener) dailyListener.off();
+      dailyListener = db.ref(dailyPath());
+      dailyListener.on('value', function (snap) {
+        renderDailyRanking(snap.val());
+      });
+    }
+
+    function renderDailyRanking(data) {
+      function emptyWpm() {
+        dailyRankBody.innerHTML = '<tr><td colspan="5" class="db-empty">아직 오늘의 기록이 없습니다.</td></tr>';
+        dailyCount.textContent = '0건';
+      }
+      function emptySkip() {
+        dailySkipBody.innerHTML = '<tr><td colspan="5" class="db-empty">아직 오늘의 기록이 없습니다.</td></tr>';
+        dailySkipCount.textContent = '0건';
+      }
+      if (!data || typeof data !== 'object') {
+        emptyWpm();
+        emptySkip();
+        return;
+      }
+      var raw = [];
+      Object.keys(data).forEach(function (id) {
+        var o = data[id] || {};
+        raw.push({
+          nickname: o.nickname || '익명',
+          wpm: Number(o.bestWpm) || 0,
+          course: o.bestCourse || '',
+          roomCount: Number(o.roomCount) || 0,
+        });
+      });
+      var listWpm = raw.filter(function (r) { return r.wpm > 0; });
+      listWpm.sort(function (a, b) { return b.wpm - a.wpm; });
+      dailyCount.textContent = listWpm.length + '건';
+      if (!listWpm.length) emptyWpm();
+      else {
+        dailyRankBody.innerHTML = listWpm.map(function (row, idx) {
+          return '<tr>' +
+            '<td style="color:var(--text-muted)">' + (idx + 1) + '</td>' +
+            '<td>' + esc(row.nickname) + '</td>' +
+            '<td class="db-wpm">' + row.wpm + '</td>' +
+            '<td><span class="db-course">' + esc(row.course) + '</span></td>' +
+            '<td class="db-skip">' + row.roomCount + '</td></tr>';
+        }).join('');
+      }
+      var listSkip = raw.filter(function (r) { return r.roomCount > 0; });
+      listSkip.sort(function (a, b) {
+        if (b.roomCount !== a.roomCount) return b.roomCount - a.roomCount;
+        return b.wpm - a.wpm;
+      });
+      dailySkipCount.textContent = listSkip.length + '건';
+      if (!listSkip.length) emptySkip();
+      else {
+        dailySkipBody.innerHTML = listSkip.map(function (row, idx) {
+          return '<tr>' +
+            '<td style="color:var(--text-muted)">' + (idx + 1) + '</td>' +
+            '<td>' + esc(row.nickname) + '</td>' +
+            '<td class="db-skip">' + row.roomCount + '</td>' +
+            '<td class="db-wpm">' + row.wpm + '</td>' +
+            '<td><span class="db-course">' + esc(row.course) + '</span></td></tr>';
+        }).join('');
+      }
+    }
+
+    /* ================================================================
+       Search
+       ================================================================ */
+    searchInput.addEventListener('input', function () {
+      searchQuery = (searchInput.value || '').trim();
+      renderFullSidebar();
+    });
+
+    /* ================================================================
+       Material expiry (auto-delete when period ends)
+       ================================================================ */
+    function getPeriodEndTime(course) {
+      var now = new Date();
+      var jsDay = now.getDay();
+      var slots = parseSchedule(course['시간대']);
+      for (var i = 0; i < slots.length; i++) {
+        if (slots[i].day === jsDay) {
+          for (var j = 0; j < PERIODS.length; j++) {
+            if (PERIODS[j].p === slots[i].period) {
+              var end = new Date(now);
+              end.setHours(PERIODS[j].eh, PERIODS[j].em, 0, 0);
+              return end.getTime();
+            }
+          }
+        }
+      }
+      return 0;
+    }
+
+    function checkMaterialExpiry() {
+      if (!currentCourse || !firebaseOk) return;
+      var endTime = getPeriodEndTime(currentCourse);
+      if (endTime > 0 && Date.now() > endTime) {
+        db.ref(roomPath(currentCourse.id) + '/material').remove();
+        passages = DEFAULT_PASSAGES.slice();
+        resetFullSession();
+        renderPassage();
+        setStatus('수업 시간이 종료되어 강의자료가 초기화되었습니다.');
+      }
+    }
+
+    /* ================================================================
+       Init
+       ================================================================ */
+    var onlineUserRef = null;
+    var onlineUsersListAttached = false;
+
+    function initOnlineUsers() {
+      if (!firebaseOk) return;
+      var ref = db.ref('online_users/' + onlineUid);
+      onlineUserRef = ref;
+
+      db.ref('.info/connected').on('value', function (snap) {
+        if (snap.val() !== true) return;
+        ref.set({ t: Date.now(), nick: nickname || '' });
+        ref.onDisconnect().remove();
+      });
+
+      if (!onlineUsersListAttached) {
+        onlineUsersListAttached = true;
+        db.ref('online_users').on('value', function (snap) {
+          var data = snap.val();
+          lastOnlineUsersData = data && typeof data === 'object' ? data : null;
+          var n = lastOnlineUsersData ? Object.keys(lastOnlineUsersData).length : 0;
+          topbarOnline.textContent = n + '명이 딴짓중';
+          if (!currentCourse) renderTopbarOnlineAvatars(lastOnlineUsersData);
+        });
+      }
+    }
+
+    (function boot() {
+      updateTimeInfo();
+      initOnlineUsers();
+      subscribeDailyRanking();
+
+      fetch('courses.json')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          allCourses = data;
+          refreshCourses();
+          if (!(nickname && nickname.trim())) {
+            openNicknameModal({
+              title: '환영합니다',
+              desc: '사이트에서 사용할 닉네임을 먼저 입력하세요. 목록·랭킹·수업방에 이 이름으로 표시됩니다.',
+              submitLabel: '확인',
+            });
+          }
+        })
+        .catch(function (e) {
+          console.error('courses.json load failed', e);
+          courseListEl.innerHTML = '<div class="no-courses-msg">courses.json을 불러오지 못했습니다.</div>';
+        });
+
+      setInterval(refreshCourses, 60000);
+
+      window.addEventListener('beforeunload', function () {
+        if (playerRef && firebaseOk) playerRef.remove();
+        if (onlineUserRef && firebaseOk) onlineUserRef.remove();
+      });
+    })();
+  })();
+  </script>
+</body>
+</html>

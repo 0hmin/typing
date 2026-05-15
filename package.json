@@ -1,0 +1,5 @@
+{
+  "name": "typing-workspace",
+  "private": true,
+  "description": "Static typing / lecture workspace (Vercel: no build step)"
+}
