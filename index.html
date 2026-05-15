@@ -257,12 +257,11 @@
     .fake-block.bullet::before { content: "•"; position: absolute; left: 0.25em; color: var(--text-muted); }
 
     /* ─── Typing stack: 지문 영역 + 입력 영역 (동일 거터로 정렬) ─── */
-    .block-label { font-size: 12px; color: var(--text-muted); margin: 28px 0 6px; max-width: 720px; width: 100%; box-sizing: border-box; padding: 0 var(--type-stack-pad-x); }
+    .block-label { font-size: 12px; color: var(--text-muted); margin: 28px 0 6px; max-width: 720px; width: 100%; box-sizing: border-box; }
     .type-stack {
       max-width: 720px;
       width: 100%;
       box-sizing: border-box;
-      padding: 0 var(--type-stack-pad-x);
       position: relative;
       outline: none;
       display: flex;
@@ -445,7 +444,6 @@
       max-width: 720px;
       width: 100%;
       box-sizing: border-box;
-      padding: 0 var(--type-stack-pad-x);
     }
     #roomView {
       min-width: 0;
@@ -1603,7 +1601,7 @@
       dg.appendChild(dStrip);
       var text = document.createElement('div');
       text.className = 'done-block';
-      text.textContent = p;
+      text.textContent = userInput;
       row.appendChild(dg);
       row.appendChild(text);
       donePassagesEl.appendChild(row);
@@ -1693,14 +1691,11 @@
       }
       var html = '';
       var i = 0;
-      for (; i < userInput.length; i++) {
-        if (i < p.length) {
-          html += userInput[i] === p[i]
-            ? '<span class="done">' + esc(userInput[i]) + '</span>'
-            : '<span class="err">' + esc(userInput[i]) + '</span>';
-        } else {
-          html += '<span class="err">' + esc(userInput[i]) + '</span>';
-        }
+      for (; i < userInput.length && i < p.length; i++) {
+        var expected = p[i];
+        html += userInput[i] === expected
+          ? '<span class="done">' + esc(expected) + '</span>'
+          : '<span class="err">' + esc(expected) + '</span>';
       }
       if (i < p.length) {
         html += '<span class="cur">' + esc(p[i]) + '</span>';
