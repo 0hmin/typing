@@ -1223,9 +1223,10 @@
       materialListener = db.ref(base + '/material');
       materialListener.on('value', function (snap) {
         var mat = snap.val();
-        if (mat && mat.passages && mat.passages.length > 0) {
-          var cleanedList = cleansePassageList(mat.passages);
-          passages = cleanedList.length ? cleanedList : mat.passages;
+        var rawList = mat && mat.passages ? materialPassagesToArray(mat.passages) : [];
+        if (rawList.length > 0) {
+          var cleanedList = cleansePassageList(rawList);
+          passages = cleanedList.length ? cleanedList : rawList;
           resetFullSession();
           renderPassage();
           setStatus(mat.uploadedBy + '님이 공유한 강의자료 (' + passages.length + '개 구간). 타이핑을 시작하세요.');
@@ -1413,6 +1414,9 @@
         if (firebaseOk) {
           var matRef = db.ref(roomPath(currentCourse.id) + '/material');
           await matRef.set({ passages: ps, uploadedBy: nickname, updatedAt: Date.now() });
+          passages = ps;
+          resetFullSession();
+          renderPassage();
           setStatus('강의자료를 업로드했습니다 (' + ps.length + '개 구간). 전체 참가자에게 공유됩니다.');
         } else {
           passages = ps;
@@ -1506,6 +1510,25 @@
       return out.filter(function (p) {
         return p.replace(/\s/g, '').length >= 10;
       });
+    }
+
+    /** Firebase RTDB는 배열을 저장하면 스냅샷에서 {0:'…',1:'…'} 객체로 옴 → 문자열 배열로 통일 */
+    function materialPassagesToArray(raw) {
+      if (!raw) return [];
+      if (Array.isArray(raw)) {
+        return raw.map(function (x) { return typeof x === 'string' ? x : ''; }).filter(Boolean);
+      }
+      if (typeof raw === 'object') {
+        return Object.keys(raw)
+          .filter(function (k) { return /^\d+$/.test(k); })
+          .sort(function (a, b) { return Number(a) - Number(b); })
+          .map(function (k) {
+            var v = raw[k];
+            return typeof v === 'string' ? v : '';
+          })
+          .filter(Boolean);
+      }
+      return [];
     }
 
     /** Firebase 등에 저장된 지문 배열을 항상 동일 규칙으로 재정리 (예전 업로드·미전처리 보정 + 길이 분할) */
