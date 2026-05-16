@@ -559,8 +559,9 @@
   <div id="nickOverlay" class="overlay hidden">
     <div class="modal">
       <h2 id="nickModalTitle">닉네임 설정</h2>
-      <p id="nickModalDesc">이 브라우저에서 사용할 닉네임을 입력하세요.</p>
-      <input id="nickInput" type="text" maxlength="24" placeholder="닉네임" autocomplete="off" />
+      <p id="nickModalDesc">이 브라우저에서 사용할 닉네임과 숫자 4자리 PIN을 입력하세요.</p>
+      <input id="nickInput" type="text" maxlength="24" placeholder="닉네임" autocomplete="username" />
+      <input id="nickPinInput" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*" placeholder="PIN (숫자 4자리)" autocomplete="new-password" />
       <div class="modal-actions">
         <button type="button" class="cancel" id="nickCancel">취소</button>
         <button type="button" class="submit" id="nickJoin">확인</button>
@@ -797,6 +798,7 @@
     var nickModalTitle= $id('nickModalTitle');
     var nickModalDesc = $id('nickModalDesc');
     var nickInput     = $id('nickInput');
+    var nickPinInput  = $id('nickPinInput');
     var nickJoin      = $id('nickJoin');
     var nickCancel    = $id('nickCancel');
     var fileInput     = $id('fileInput');
@@ -845,11 +847,69 @@
     var allCourses = [];
     var currentCourse = null;
     var searchQuery = '';
+    /** 닉네임+PIN 조합 → 안정적인 Firebase 플레이어 ID (동명이인 완화; PIN은 로컬에만 저장) */
+    function stablePlayerIdFromCredentials(nick, pin) {
+      var n = String(nick || '').trim().toLowerCase();
+      var p = String(pin || '').replace(/\D/g, '');
+      if (!n.length || !/^\d{4}$/.test(p)) return '';
+      var combined = n + '\x1e' + p;
+      var h = 2166136261 >>> 0;
+      for (var i = 0; i < combined.length; i++) {
+        h ^= combined.charCodeAt(i);
+        h = Math.imul(h, 16777619) >>> 0;
+      }
+      return 'nick_' + ('00000000' + h.toString(16)).slice(-8);
+    }
+
+    function migratePinnedLocalStorage(fromPid, toPid) {
+      if (!fromPid || !toPid || fromPid === toPid) return;
+      try {
+        var oldRaw = localStorage.getItem('nt_pinned_' + fromPid);
+        if (!oldRaw) return;
+        var oldArr = JSON.parse(oldRaw);
+        if (!Array.isArray(oldArr) || !oldArr.length) return;
+        var newRaw = localStorage.getItem('nt_pinned_' + toPid);
+        var newArr = newRaw ? JSON.parse(newRaw) : [];
+        if (!Array.isArray(newArr)) newArr = [];
+        var seen = {};
+        var merged = [];
+        function addPin(id) {
+          if (!id || seen[id]) return;
+          seen[id] = true;
+          merged.push(id);
+        }
+        oldArr.forEach(addPin);
+        newArr.forEach(addPin);
+        localStorage.setItem('nt_pinned_' + toPid, JSON.stringify(merged));
+        localStorage.removeItem('nt_pinned_' + fromPid);
+      } catch (e) { console.warn('migratePinnedLocalStorage', e); }
+    }
+
     var nickname = sessionStorage.getItem('nt_nick') || '';
-    var playerId = sessionStorage.getItem('nt_player_id');
-    if (!playerId) {
-      playerId = 'p_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-      sessionStorage.setItem('nt_player_id', playerId);
+    var sessionPin = sessionStorage.getItem('nt_pin') || '';
+    var playerId;
+    if (nickname.trim() && /^\d{4}$/.test(sessionPin)) {
+      var derivedPid = stablePlayerIdFromCredentials(nickname, sessionPin);
+      if (derivedPid) {
+        var storedPid = sessionStorage.getItem('nt_player_id');
+        if (storedPid && storedPid !== derivedPid) {
+          migratePinnedLocalStorage(storedPid, derivedPid);
+        }
+        playerId = derivedPid;
+        sessionStorage.setItem('nt_player_id', playerId);
+      } else {
+        playerId = sessionStorage.getItem('nt_player_id');
+        if (!playerId) {
+          playerId = 'p_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+          sessionStorage.setItem('nt_player_id', playerId);
+        }
+      }
+    } else {
+      playerId = sessionStorage.getItem('nt_player_id');
+      if (!playerId) {
+        playerId = 'p_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        sessionStorage.setItem('nt_player_id', playerId);
+      }
     }
 
     function pinnedStorageKey() {
@@ -1123,21 +1183,26 @@
       opts = opts || {};
       pendingCourse = opts.pendingCourse || null;
       nickModalTitle.textContent = opts.title || '닉네임 설정';
-      nickModalDesc.textContent = opts.desc || '이 브라우저에서 사용할 닉네임을 입력하세요.';
+      nickModalDesc.textContent = opts.desc || '이 브라우저에서 사용할 닉네임과 숫자 4자리 PIN을 입력하세요.';
       nickJoin.textContent = opts.submitLabel || '확인';
-      nickInput.value = '';
+      nickInput.value = opts.prefillNick != null ? String(opts.prefillNick) : '';
+      nickPinInput.value = '';
       nickOverlay.classList.remove('hidden');
-      setTimeout(function () { nickInput.focus(); }, 50);
+      setTimeout(function () {
+        if ((nickInput.value || '').trim()) nickPinInput.focus();
+        else nickInput.focus();
+      }, 50);
     }
 
     function onCourseClick(course) {
       if (currentCourse && currentCourse.id === course.id) return;
-      if (!(nickname && nickname.trim())) {
+      if (!(nickname && nickname.trim() && /^\d{4}$/.test(sessionPin || ''))) {
         openNicknameModal({
           pendingCourse: course,
-          title: '닉네임이 필요합니다',
-          desc: '수업에 참여하려면 먼저 닉네임을 입력한 뒤 확인을 누르세요.',
+          title: '닉네임·PIN이 필요합니다',
+          desc: '수업에 참여하려면 닉네임과 숫자 4자리 PIN을 입력한 뒤 확인을 누르세요.',
           submitLabel: '수업 참여',
+          prefillNick: (nickname || '').trim() || '',
         });
         return;
       }
@@ -1148,8 +1213,26 @@
     nickJoin.addEventListener('click', function () {
       var n = (nickInput.value || '').trim();
       if (n.length < 1) return;
+      var pinDigits = (nickPinInput.value || '').replace(/\D/g, '').slice(0, 4);
+      if (!/^\d{4}$/.test(pinDigits)) {
+        nickModalDesc.textContent = 'PIN은 숫자 4자리여야 합니다.';
+        nickPinInput.focus();
+        return;
+      }
+      var oldPid = playerId;
       nickname = n.slice(0, 24);
+      sessionPin = pinDigits;
       sessionStorage.setItem('nt_nick', nickname);
+      sessionStorage.setItem('nt_pin', sessionPin);
+      var newPid = stablePlayerIdFromCredentials(nickname, sessionPin);
+      if (!newPid) return;
+      sessionStorage.setItem('nt_player_id', newPid);
+      playerId = newPid;
+      if (oldPid && oldPid !== newPid) {
+        migratePinnedLocalStorage(oldPid, newPid);
+      }
+      pinnedIds = loadPinnedIds();
+
       nickOverlay.classList.add('hidden');
       if (onlineUserRef && firebaseOk) onlineUserRef.update({ nick: nickname });
       if (pendingCourse) {
@@ -1157,13 +1240,21 @@
         joinRoom(pendingCourse);
         pendingCourse = null;
       }
+      renderFullSidebar();
     });
     nickCancel.addEventListener('click', function () {
       nickOverlay.classList.add('hidden');
       pendingCourse = null;
     });
     nickInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') nickPinInput.focus();
+    });
+    nickPinInput.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') nickJoin.click();
+    });
+    nickPinInput.addEventListener('input', function () {
+      var v = (nickPinInput.value || '').replace(/\D/g, '').slice(0, 4);
+      if (v !== nickPinInput.value) nickPinInput.value = v;
     });
 
     /* ================================================================
@@ -2078,11 +2169,16 @@
         .then(function (data) {
           allCourses = data;
           refreshCourses();
-          if (!(nickname && nickname.trim())) {
+          var hasPin = /^\d{4}$/.test(sessionPin || '');
+          if (!(nickname && nickname.trim() && hasPin)) {
+            var hadNickOnly = !!(nickname && nickname.trim()) && !hasPin;
             openNicknameModal({
-              title: '환영합니다',
-              desc: '사이트에서 사용할 닉네임을 먼저 입력하세요. 목록·랭킹·수업방에 이 이름으로 표시됩니다.',
+              title: hadNickOnly ? 'PIN 설정' : '환영합니다',
+              desc: hadNickOnly
+                ? '동명이인을 줄이기 위해 숫자 4자리 PIN을 설정해 주세요. 기존 즐겨찾기는 확인 시 이어집니다.'
+                : '닉네임과 숫자 4자리 PIN을 입력하세요. 목록·랭킹·수업방에 닉네임이 표시되며, PIN은 이 기기에서만 사용됩니다.',
               submitLabel: '확인',
+              prefillNick: hadNickOnly ? nickname : '',
             });
           }
         })
