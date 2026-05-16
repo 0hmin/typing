@@ -7,6 +7,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script src="firebase-config.js"></script>
   <style>
     :root {
@@ -836,6 +837,8 @@
     var dailySkipCount = $id('dailySkipCount');
     var workspaceRow  = document.querySelector('.workspace-row');
 
+    function setStatus(msg) { statusText.textContent = msg; }
+
     /* ================================================================
        State
        ================================================================ */
@@ -1410,10 +1413,23 @@
         } else {
           text = await file.text();
         }
-        var ps = sliceIntoPassages(text);
+        var ps = sliceIntoPassages(text, false);
+        if (!ps.length) {
+          setStatus('파일에서 지문으로 쓸 텍스트를 거의 찾지 못했습니다. 글자를 드래그해 선택할 수 있는 PDF·TXT를 사용해 보세요. (이미지로만 된 슬라이드는 추출되지 않습니다.)');
+          return;
+        }
         if (firebaseOk) {
           var matRef = db.ref(roomPath(currentCourse.id) + '/material');
-          await matRef.set({ passages: ps, uploadedBy: nickname, updatedAt: Date.now() });
+          try {
+            await matRef.set({ passages: ps, uploadedBy: nickname || '익명', updatedAt: Date.now() });
+          } catch (fe) {
+            console.error(fe);
+            setStatus('Firebase에 저장하지 못했습니다. 콘솔(F12) 오류와 Realtime Database 규칙(읽기·쓰기 허용)을 확인하세요.');
+            passages = ps;
+            resetFullSession();
+            renderPassage();
+            return;
+          }
           passages = ps;
           resetFullSession();
           renderPassage();
@@ -1430,7 +1446,13 @@
       }
     }
 
-    async function extractPdfText(file) {
+    /** PDF.js 텍스트 레이어가 거의 비었는지 (이미지형 PDF 판별용) */
+    var PDF_JS_LAYER_MIN_CHARS = 30;
+    function pdfJsTextLayerLooksEmpty(text) {
+      return (text || '').replace(/\s/g, '').length < PDF_JS_LAYER_MIN_CHARS;
+    }
+
+    async function extractPdfTextViaPdfJs(file) {
       var buf = await file.arrayBuffer();
       var pdf = await pdfjsLib.getDocument({ data: buf }).promise;
       var full = '';
@@ -1440,6 +1462,47 @@
         full += content.items.map(function (it) { return it.str || ''; }).join(' ') + '\n\n';
       }
       return full;
+    }
+
+    /** 페이지를 canvas로 그린 뒤 Tesseract.js OCR (언어: kor 단독) */
+    async function extractPdfTextViaOcr(file) {
+      if (typeof Tesseract === 'undefined') {
+        throw new Error('Tesseract.js가 로드되지 않았습니다.');
+      }
+      var buf = await file.arrayBuffer();
+      var pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      var numPages = pdf.numPages;
+      var scale = 2;
+      var parts = [];
+      for (var p = 1; p <= numPages; p++) {
+        setStatus('강의자료 분석 중... (' + p + '/' + numPages + ')');
+        var page = await pdf.getPage(p);
+        var viewport = page.getViewport({ scale: scale });
+        var canvas = document.createElement('canvas');
+        var ctx = canvas.getContext('2d', { willReadFrequently: true });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        var renderTask = page.render({ canvasContext: ctx, viewport: viewport });
+        await renderTask.promise;
+        var result = await Tesseract.recognize(canvas, 'kor');
+        parts.push((result && result.data && result.data.text) ? result.data.text : '');
+        canvas.width = 0;
+        canvas.height = 0;
+      }
+      return sanitizeTesseractOutput(parts.join('\n\n'));
+    }
+
+    /** 1단계 PDF.js → 2단계 Tesseract 폴백 */
+    async function extractPdfText(file) {
+      var viaLayer = await extractPdfTextViaPdfJs(file);
+      if (!pdfJsTextLayerLooksEmpty(viaLayer)) return viaLayer;
+      setStatus('강의자료 분석 중...');
+      try {
+        return await extractPdfTextViaOcr(file);
+      } catch (ocrErr) {
+        console.warn('OCR 폴백 실패:', ocrErr);
+        return viaLayer;
+      }
     }
 
     /* ================================================================
@@ -1467,6 +1530,37 @@
       t = t.replace(/\n[ \t]*/g, '\n');
       t = t.replace(/\n{3,}/g, '\n\n');
       return t.trim();
+    }
+
+    /** Tesseract OCR만: 한글 포함 줄만 유지 → 기호 줄 제거 → 기존 cleanText·전처리 동일 적용 */
+    function sanitizeTesseractOutput(raw) {
+      if (!raw || typeof raw !== 'string') return '';
+      var t = raw;
+      if (typeof t.normalize === 'function') {
+        try { t = t.normalize('NFKC'); } catch (e) { /* ignore */ }
+      }
+      t = t.replace(/\uFFFD/g, '');
+      t = t.replace(/[\u200B-\u200D\uFEFF]/g, '');
+      var hangulLine = /[가-힣]/;
+      var lines = t.split(/\n/);
+      var kept = [];
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        var trimmed = line.trim();
+        if (!trimmed) continue;
+        if (!hangulLine.test(trimmed)) continue;
+        var letters = trimmed.replace(/[^0-9A-Za-z\uAC00-\uD7A3\u3131-\u318E]/g, '').length;
+        var nonWs = trimmed.replace(/\s/g, '').length;
+        if (nonWs === 0) continue;
+        if (letters === 0 && nonWs <= 6) continue;
+        if (nonWs >= 8 && letters / nonWs < 0.08) continue;
+        kept.push(line);
+      }
+      t = kept.join('\n');
+      t = t.replace(/[\u2190-\u21FF\u2300-\u23FE\u2500-\u259F\u25A0-\u25FF\u2700-\u27BF]/gu, ' ');
+      t = t.replace(/[ \t]{2,}/g, ' ');
+      t = t.replace(/\n{3,}/g, '\n\n');
+      return cleanText(t.trim());
     }
 
     /** 한 지문이 너무 길 때 ≈두 줄 분량으로 분할 (문장부호·공백 우선) */
@@ -1548,9 +1642,11 @@
       return acc;
     }
 
-    function sliceIntoPassages(raw) {
+    /** allowDefaultFallback: false 이면 빈 결과 시 [] (업로드 시 기본 딴짓 지문으로 착각하지 않도록) */
+    function sliceIntoPassages(raw, allowDefaultFallback) {
+      if (allowDefaultFallback === undefined) allowDefaultFallback = true;
       var cleaned = cleanText(raw);
-      if (!cleaned) return DEFAULT_PASSAGES.slice();
+      if (!cleaned) return allowDefaultFallback ? DEFAULT_PASSAGES.slice() : [];
       var parts = cleaned.split(/\n{2,}/).map(function (p) {
         return p.replace(/\n+/g, ' ').trim();
       }).filter(function (p) {
@@ -1575,13 +1671,12 @@
       merged = splitMerged;
 
       if (merged.length > 80) merged = merged.slice(0, 80);
-      return merged.length ? merged : DEFAULT_PASSAGES.slice();
+      return merged.length ? merged : (allowDefaultFallback ? DEFAULT_PASSAGES.slice() : []);
     }
 
     /* ================================================================
        Typing logic
        ================================================================ */
-    function setStatus(msg) { statusText.textContent = msg; }
     function currentPassage() { return passages[passageIndex] || ''; }
 
     function resetPassageInput() {
@@ -1916,18 +2011,20 @@
       var now = new Date();
       var jsDay = now.getDay();
       var slots = parseSchedule(course['시간대']);
+      /* 같은 요일에 교시가 여러 개면 "마지막 교시" 종료 시각까지 자료 유지 (예: 토 1~5 중 토 5 종료 후만 만료) */
+      var maxEnd = 0;
       for (var i = 0; i < slots.length; i++) {
-        if (slots[i].day === jsDay) {
-          for (var j = 0; j < PERIODS.length; j++) {
-            if (PERIODS[j].p === slots[i].period) {
-              var end = new Date(now);
-              end.setHours(PERIODS[j].eh, PERIODS[j].em, 0, 0);
-              return end.getTime();
-            }
-          }
+        if (slots[i].day !== jsDay) continue;
+        for (var j = 0; j < PERIODS.length; j++) {
+          if (PERIODS[j].p !== slots[i].period) continue;
+          var end = new Date(now);
+          end.setHours(PERIODS[j].eh, PERIODS[j].em, 0, 0);
+          var t = end.getTime();
+          if (t > maxEnd) maxEnd = t;
+          break;
         }
       }
-      return 0;
+      return maxEnd;
     }
 
     function checkMaterialExpiry() {
