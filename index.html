@@ -107,6 +107,44 @@
       background: var(--bg); transition: background 0.1s;
     }
     .import-main-btn:hover { background: var(--hover); color: var(--text); border-style: solid; }
+    .prop-value.import-upload-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .import-upload-tip {
+      position: relative;
+      display: inline-block;
+      margin-left: 6px;
+      padding: 10px 16px;
+      font-size: 14px;
+      line-height: 1.45;
+      color: #fff;
+      white-space: nowrap;
+      border-radius: 8px;
+      background: rgba(40, 40, 40, 0.88);
+      box-shadow: 0 2px 12px rgba(15, 15, 15, 0.18);
+      animation: importTipIn 0.35s ease;
+    }
+    .import-upload-tip.hidden { display: none; }
+    .import-upload-tip::before {
+      content: '';
+      position: absolute;
+      left: -7px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-top: 7px solid transparent;
+      border-bottom: 7px solid transparent;
+      border-right: 8px solid rgba(40, 40, 40, 0.88);
+    }
+    @keyframes importTipIn {
+      from { opacity: 0; transform: translateX(-4px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
     .sidebar-footer {
       margin-top: auto; padding: 8px; font-size: 11px; color: var(--text-muted);
       border-top: 1px solid var(--border); flex-shrink: 0;
@@ -446,6 +484,97 @@
       width: 100%;
       box-sizing: border-box;
     }
+    .session-complete-panel {
+      max-width: 720px;
+      width: 100%;
+      box-sizing: border-box;
+      margin: 20px 0 8px;
+    }
+    .session-complete-panel.hidden { display: none; }
+    .session-complete-img {
+      display: block;
+      width: 100%;
+      max-width: 720px;
+      height: auto;
+      border-radius: 4px;
+      margin: 0 0 16px;
+      border: 1px solid var(--border);
+    }
+    #roomView.session-complete-active #donePassages {
+      display: none;
+    }
+    .must-have-box {
+      background: var(--callout-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px 16px;
+    }
+    .must-have-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      margin: 0 0 10px;
+      color: var(--text);
+    }
+    .must-have-checklist {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .must-have-checklist li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .must-have-check {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      border-radius: 3px;
+      background: var(--accent-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .must-have-label {
+      text-decoration: line-through;
+      color: var(--text);
+    }
+    .restart-typing-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 14px;
+      padding: 4px 0;
+      border: none;
+      background: none;
+      font: inherit;
+      font-size: 16px;
+      color: var(--text);
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .restart-typing-btn:hover { opacity: 0.75; }
+    .restart-typing-emoji {
+      text-decoration: none;
+      line-height: 1;
+    }
+    .restart-typing-label {
+      text-decoration: underline;
+      text-decoration-color: var(--text-muted);
+      text-underline-offset: 3px;
+    }
+    #roomView.session-complete-active #blockLabel,
+    #roomView.session-complete-active #typingHost {
+      display: none;
+    }
     #roomView {
       min-width: 0;
       overflow-x: hidden;
@@ -692,11 +821,12 @@
               </div>
               <div class="prop-row">
                 <span class="prop-label"><img class="prop-label-icon" src="assets/attatchment.png" alt=""> 자료</span>
-                <span class="prop-value">
+                <span class="prop-value import-upload-wrap">
                   <button type="button" class="import-main-btn" id="importMainBtn">
                     <span>↑</span>
                     <span>Import · 강의자료</span>
                   </button>
+                  <span class="import-upload-tip" id="importUploadTip" role="tooltip">여기서 강의자료를 업로드할 수 있어요</span>
                 </span>
               </div>
               <div class="prop-online-row">
@@ -713,6 +843,19 @@
             </div>
 
             <div id="donePassages"></div>
+
+            <div id="sessionCompletePanel" class="session-complete-panel hidden" aria-hidden="true">
+              <img class="session-complete-img" src="assets/mudo.jpg" alt="집중? 해서 딴짓 중…" width="720" />
+              <div class="must-have-box">
+                <div class="must-have-title">🔥 MUST HAVE</div>
+                <ul class="must-have-checklist">
+                  <li><span class="must-have-check" aria-hidden="true">✓</span><span class="must-have-label">딴짓하기</span></li>
+                  <li><span class="must-have-check" aria-hidden="true">✓</span><span class="must-have-label">교수님 몰래 타자치기</span></li>
+                  <li><span class="must-have-check" aria-hidden="true">✓</span><span class="must-have-label">수업에 집중 안하기</span></li>
+                </ul>
+              </div>
+              <button type="button" class="restart-typing-btn" id="restartTypingBtn"><span class="restart-typing-emoji" aria-hidden="true">👊</span><span class="restart-typing-label">다시 딴짓하기</span></button>
+            </div>
 
             <div class="block-label" id="blockLabel">Text</div>
             <div class="type-stack" id="typingHost" tabindex="-1">
@@ -781,12 +924,8 @@
     var AVATAR_COLORS = ['#e03e3e','#d9730d','#dfab01','#0f7b6c','#2383e2','#6940a5','#ad1a72'];
     var DEFAULT_PASSAGES = [
       "딴짓의 역사와 문화적 맥락 인류는 노동과 의무가 존재한 순간부터 딴짓을 해왔다. 고대 이집트 파피루스 문서에는 피라미드 건설 현장에서 주사위 놀이를 하다 적발된 노동자 기록이 남아 있으며 이는 딴짓의 역사가 문명의 역사와 그 궤를 같이함을 보여준다.",
-      "중세 유럽의 수도원에서는 필경사들이 성경을 필사하는 도중 여백에 낙서를 남겼다. 토끼가 기사를 사냥하는 그림, 괴물이 춤추는 장면 등 이른바 마지널리아라 불리는 이 낙서들은 당대 수도사들의 딴짓 욕구가 얼마나 강렬했는지를 증명하는 역사적 사료로 평가받는다.",
       "산업혁명 이후 공장 노동자들은 기계 소음에 맞춰 노래를 흥얼거리거나 옆 동료와 잡담을 나누는 방식으로 단조로운 반복 노동을 버텨냈다. 경영학자들은 이러한 행동이 생산성을 저해하기는커녕 오히려 노동자의 번아웃을 방지하는 기능을 했다고 분석한다.",
-      "20세기 학교 교육이 보편화되면서 딴짓은 새로운 국면을 맞이한다. 교실이라는 밀폐된 공간에서 학생들은 책상 아래 소설을 숨겨 읽거나 공책에 만화를 그리는 등 선생님의 시선을 피한 정교한 딴짓 기술을 발전시켰다.",
-      "심리학자 산디 만은 직장인의 약 91퍼센트가 회의 중 딴짓을 한 경험이 있다고 보고하였다. 흥미롭게도 연구 결과에 따르면 적당한 딴짓은 뇌의 디폴트 모드 네트워크를 활성화시켜 창의적 사고와 문제 해결 능력을 향상시키는 것으로 나타났다.",
       "스마트폰의 등장은 딴짓의 패러다임을 완전히 바꾸어 놓았다. 손바닥 안에 들어온 무한한 콘텐츠는 딴짓을 더욱 정교하고 은밀하게 만들었으며 현대인의 평균 집중 지속 시간은 2000년 12초에서 2015년 8초로 감소하였다.",
-      "일부 진보적 교육학자들은 딴짓을 억압의 대상이 아닌 자기 조절 능력의 표현으로 바라봐야 한다고 주장한다. 학습자가 스스로 집중과 이완의 리듬을 조절하는 능력이야말로 평생 학습 사회에서 요구되는 핵심 역량이라는 것이다.",
       "결론적으로 딴짓은 인간의 본능적 자기 보호 기제이자 창의성의 원천이며 때로는 지루한 현실을 견디게 해주는 유일한 탈출구이다. 지금 이 순간 여러분이 하고 있는 행위 역시 그 유구한 역사의 일부임을 기억하라.",
     ];
 
@@ -808,6 +947,7 @@
     var sidebarTitle  = $id('sidebarTitle');
     var courseListEl  = $id('courseList');
     var importMainBtn = $id('importMainBtn');
+    var importUploadTip = $id('importUploadTip');
     var timeInfo      = $id('timeInfo');
     var breadcrumb    = $id('breadcrumb');
     var avatarList    = $id('avatarList');
@@ -822,6 +962,8 @@
     var topbarOnline  = $id('topbarOnline');
     var statusText    = $id('statusText');
     var donePassagesEl= $id('donePassages');
+    var sessionCompletePanel = $id('sessionCompletePanel');
+    var restartTypingBtn = $id('restartTypingBtn');
     var blockLabel    = $id('blockLabel');
     var typingHost    = $id('typingHost');
     var ta            = $id('typeCapture');
@@ -840,6 +982,13 @@
     var workspaceRow  = document.querySelector('.workspace-row');
 
     function setStatus(msg) { statusText.textContent = msg; }
+
+    function showImportUploadTip() {
+      if (importUploadTip) importUploadTip.classList.remove('hidden');
+    }
+    function hideImportUploadTip() {
+      if (importUploadTip) importUploadTip.classList.add('hidden');
+    }
 
     /* ================================================================
        State
@@ -970,6 +1119,7 @@
     var lastPlayersData = null;
     var composing = false;
     var passageComplete = false;
+    var sessionAllComplete = false;
 
     /* ================================================================
        Firebase
@@ -1285,6 +1435,7 @@
       passages = DEFAULT_PASSAGES.slice();
       renderPassage();
       setStatus('수업방에 입장했습니다. 강의자료를 업로드하거나 타이핑을 시작하세요.');
+      showImportUploadTip();
       renderFullSidebar();
 
       if (!firebaseOk) {
@@ -1324,6 +1475,7 @@
           resetFullSession();
           renderPassage();
           setStatus(mat.uploadedBy + '님이 공유한 강의자료 (' + passages.length + '개 구간). 타이핑을 시작하세요.');
+          hideImportUploadTip();
         }
       });
 
@@ -1346,6 +1498,7 @@
       if (broadcastTimer) { clearInterval(broadcastTimer); broadcastTimer = null; }
       lastPlayersData = null;
       currentCourse = null;
+      hideImportUploadTip();
       renderPeerTypingStrip();
       renderDonePassagePeers();
 
@@ -1519,17 +1672,20 @@
             passages = ps;
             resetFullSession();
             renderPassage();
+            hideImportUploadTip();
             return;
           }
           passages = ps;
           resetFullSession();
           renderPassage();
           setStatus('강의자료를 업로드했습니다 (' + ps.length + '개 구간). 전체 참가자에게 공유됩니다.');
+          hideImportUploadTip();
         } else {
           passages = ps;
           resetFullSession();
           renderPassage();
           setStatus('강의자료에서 ' + ps.length + '개 구간을 불러왔습니다.');
+          hideImportUploadTip();
         }
       } catch (e) {
         console.error(e);
@@ -1654,8 +1810,8 @@
       return cleanText(t.trim());
     }
 
-    /** 한 지문이 너무 길 때 ≈두 줄 분량으로 분할 (문장부호·공백 우선) */
-    var PASSAGE_MAX_CHARS = 84;
+    /** 한 지문이 너무 길 때 ≈세 줄 분량으로 분할 (문장부호·공백 우선) */
+    var PASSAGE_MAX_CHARS = 126;
 
     function splitPassageToApproxTwoLines(s, maxLen) {
       maxLen = maxLen || PASSAGE_MAX_CHARS;
@@ -1761,7 +1917,7 @@
       }
       merged = splitMerged;
 
-      if (merged.length > 80) merged = merged.slice(0, 80);
+      if (merged.length > 20) merged = merged.slice(0, 20);
       return merged.length ? merged : (allowDefaultFallback ? DEFAULT_PASSAGES.slice() : []);
     }
 
@@ -1776,7 +1932,43 @@
       ta.value = '';
     }
 
+    function hideSessionComplete() {
+      sessionAllComplete = false;
+      if (sessionCompletePanel) {
+        sessionCompletePanel.classList.add('hidden');
+        sessionCompletePanel.setAttribute('aria-hidden', 'true');
+      }
+      if (roomView) roomView.classList.remove('session-complete-active');
+      if (ta && currentCourse) ta.readOnly = false;
+    }
+
+    function showSessionComplete() {
+      sessionAllComplete = true;
+      if (donePassagesEl) donePassagesEl.innerHTML = '';
+      if (sessionCompletePanel) {
+        sessionCompletePanel.classList.remove('hidden');
+        sessionCompletePanel.setAttribute('aria-hidden', 'false');
+      }
+      if (roomView) roomView.classList.add('session-complete-active');
+      if (ta) ta.readOnly = true;
+      setStatus('모든 구간을 완료했습니다. MUST HAVE 달성!');
+    }
+
+    function restartTypingSession() {
+      hideSessionComplete();
+      resetFullSession();
+      setStatus('처음 문단부터 다시 시작합니다.');
+      renderPassage();
+      updateStats();
+      if (ta) {
+        ta.readOnly = false;
+        setTimeout(function () { ta.focus(); }, 0);
+      }
+      if (typingHost) typingHost.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
     function resetFullSession() {
+      hideSessionComplete();
       resetPassageInput();
       passageIndex = 0;
       sessionStart = null;
@@ -1799,34 +1991,49 @@
       sessionTotalCorrect += countCorrectInCurrent();
       sessionTotalChars += userInput.length;
 
-      var completedIdx = passageIndex;
-      var row = document.createElement('div');
-      row.className = 'done-passage-row';
-      row.setAttribute('data-passage-index', String(completedIdx));
-      var dg = document.createElement('div');
-      dg.className = 'done-passage-gutter';
-      var dStrip = document.createElement('div');
-      dStrip.className = 'type-peer-strip type-peer-strip--aside done-passage-peers';
-      dg.appendChild(dStrip);
-      var text = document.createElement('div');
-      text.className = 'done-block';
-      text.textContent = userInput;
-      row.appendChild(dg);
-      row.appendChild(text);
-      donePassagesEl.appendChild(row);
+      var isLastPassage = passageIndex + 1 >= passages.length;
+      if (!isLastPassage) {
+        var completedIdx = passageIndex;
+        var row = document.createElement('div');
+        row.className = 'done-passage-row';
+        row.setAttribute('data-passage-index', String(completedIdx));
+        var dg = document.createElement('div');
+        dg.className = 'done-passage-gutter';
+        var dStrip = document.createElement('div');
+        dStrip.className = 'type-peer-strip type-peer-strip--aside done-passage-peers';
+        dg.appendChild(dStrip);
+        var text = document.createElement('div');
+        text.className = 'done-block';
+        text.textContent = userInput;
+        row.appendChild(dg);
+        row.appendChild(text);
+        donePassagesEl.appendChild(row);
+      }
 
-      if (passageIndex + 1 >= passages.length) {
+      if (isLastPassage) {
         resetPassageInput();
-        passageIndex = 0;
-        setStatus('모든 구간을 완료했습니다! 처음부터 다시 시작합니다.');
+        showSessionComplete();
+        if (playerRef && firebaseOk) {
+          playerRef.update({ passageIndex: passages.length, updatedAt: Date.now() });
+        }
       } else {
         passageIndex++;
         resetPassageInput();
         setStatus('문단 ' + (passageIndex + 1) + ' / ' + passages.length);
+        renderPassage();
+        updateStats();
+        typingHost.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
       }
       renderPassage();
       updateStats();
-      typingHost.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (sessionCompletePanel) {
+        sessionCompletePanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    if (restartTypingBtn) {
+      restartTypingBtn.addEventListener('click', restartTypingSession);
     }
 
     function peerAvatarEl(nick, title) {
@@ -1888,6 +2095,13 @@
     }
 
     function renderPassage() {
+      if (sessionAllComplete) {
+        progEl.textContent = String(passages.length);
+        totalEl.textContent = String(passages.length);
+        renderPeerTypingStrip();
+        renderDonePassagePeers();
+        return;
+      }
       var p = currentPassage();
       progEl.textContent = String(passageIndex + 1);
       totalEl.textContent = String(passages.length);
@@ -1901,14 +2115,21 @@
       var html = '';
       var i = 0;
       for (; i < userInput.length && i < p.length; i++) {
-        var expected = p[i];
-        html += userInput[i] === expected
-          ? '<span class="done">' + esc(expected) + '</span>'
-          : '<span class="err">' + esc(expected) + '</span>';
+        if (userInput[i] === p[i]) {
+          html += '<span class="done">' + esc(p[i]) + '</span>';
+        } else {
+          html += '<span class="err">' + esc(userInput[i]) + '</span>';
+        }
       }
-      if (i < p.length) {
-        html += '<span class="cur">' + esc(p[i]) + '</span>';
-        html += '<span class="pending">' + esc(p.slice(i + 1)) + '</span>';
+      var curAt = 0;
+      while (curAt < userInput.length && curAt < p.length && userInput[curAt] === p[curAt]) curAt++;
+      if (curAt < p.length) {
+        if (curAt >= userInput.length || userInput[curAt] === p[curAt]) {
+          html += '<span class="cur">' + esc(p[curAt]) + '</span>';
+          html += '<span class="pending">' + esc(p.slice(curAt + 1)) + '</span>';
+        } else {
+          html += '<span class="pending">' + esc(p.slice(curAt + 1)) + '</span>';
+        }
       }
       if (passageComplete) html += '<span class="enter-hint">Enter ↵</span>';
       passageEl.innerHTML = html;
@@ -1955,21 +2176,38 @@
     /* ================================================================
        Input handling (textarea with IME)
        ================================================================ */
+    /** 맞는 글자만 누적; 현재 칸에서 틀린 글자 1개까지 허용(빨간 표시용), 그 다음 칸은 막음 */
+    function clampInputToPassage(raw, passage) {
+      if (!passage) return '';
+      var out = '';
+      for (var i = 0; i < raw.length && i < passage.length; i++) {
+        if (raw[i] === passage[i]) {
+          out += raw[i];
+        } else if (out.length === i) {
+          out += raw[i];
+          break;
+        } else {
+          break;
+        }
+      }
+      return out;
+    }
+
     function applyInputFromTa() {
-      if (!nickname || composing || !currentCourse) return;
+      if (!nickname || composing || !currentCourse || sessionAllComplete) return;
       var p = currentPassage();
       if (!p.length) return;
       var raw = ta.value;
-      if (raw.indexOf('\n') !== -1 || raw.indexOf('\r') !== -1) {
-        var stripped = raw.replace(/[\r\n]/g, '');
-        ta.value = stripped;
-        if (passageComplete) { advanceToNext(); return; }
-        userInput = stripped;
-      } else {
-        userInput = raw;
+      var hadNewline = raw.indexOf('\n') !== -1 || raw.indexOf('\r') !== -1;
+      var clamped = clampInputToPassage(raw.replace(/[\r\n]/g, ''), p);
+      if (ta.value !== clamped) ta.value = clamped;
+      userInput = clamped;
+      if (hadNewline && userInput.length >= p.length) {
+        advanceToNext();
+        return;
       }
       if (!sessionStart && userInput.length > 0) sessionStart = Date.now();
-      passageComplete = (p.length > 0 && userInput.length >= p.length);
+      passageComplete = (p.length > 0 && userInput.length === p.length && userInput === p);
       renderPassage();
       updateStats();
     }
