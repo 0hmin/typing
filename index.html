@@ -429,6 +429,13 @@
       border: 2px solid var(--bg);
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     }
+    .type-peer-avatar.type-peer-avatar-overflow {
+      background: rgba(55, 53, 47, 0.14);
+      color: var(--text);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
     .type-sentence-inner {
       min-height: 2.5em;
       padding: 2px 0 4px;
@@ -2457,6 +2464,8 @@
       restartTypingBtn.addEventListener('click', restartTypingSession);
     }
 
+    var PEER_STRIP_MAX_SHOW = 2;
+
     function peerAvatarEl(nick, colorKey, title) {
       var d = document.createElement('div');
       d.className = 'type-peer-avatar';
@@ -2466,52 +2475,75 @@
       return d;
     }
 
-    function renderPeerTypingStrip() {
-      if (!peerTypingStrip) return;
-      var wrap = $id('peerTypingStripWrap');
-      peerTypingStrip.innerHTML = '';
-      if (!currentCourse || !lastPlayersData) {
-        if (wrap) wrap.setAttribute('aria-hidden', 'true');
-        return;
-      }
+    function peerOverflowEl(extraCount, title) {
+      var d = document.createElement('div');
+      d.className = 'type-peer-avatar type-peer-avatar-overflow';
+      d.textContent = '+' + extraCount;
+      d.title = title || ('외 ' + extraCount + '명');
+      return d;
+    }
+
+    function collectPeersOnPassage(targetIdx) {
+      var peers = [];
+      if (!currentCourse || !lastPlayersData) return peers;
       var stale = Date.now() - 45000;
       Object.keys(lastPlayersData).forEach(function (id) {
         if (id === playerId) return;
         var o = lastPlayersData[id] || {};
         var idx = typeof o.passageIndex === 'number' ? o.passageIndex : -1;
-        if (idx !== passageIndex || !o.updatedAt || o.updatedAt < stale) return;
-        var nick = o.nickname || '?';
-        peerTypingStrip.appendChild(peerAvatarEl(nick, id, nick + ' — 같은 문단 타이핑 중'));
+        if (idx !== targetIdx || !o.updatedAt || o.updatedAt < stale) return;
+        peers.push({ id: id, nick: o.nickname || '?' });
       });
+      return peers;
+    }
+
+    function fillPeerAvatarStrip(container, peers, titleSuffix) {
+      container.innerHTML = '';
+      var shown = peers.slice(0, PEER_STRIP_MAX_SHOW);
+      shown.forEach(function (p) {
+        container.appendChild(peerAvatarEl(p.nick, p.id, p.nick + titleSuffix));
+      });
+      var rest = peers.length - shown.length;
+      if (rest > 0) {
+        var hiddenNames = peers.slice(PEER_STRIP_MAX_SHOW).map(function (p) { return p.nick; }).join(', ');
+        container.appendChild(peerOverflowEl(rest, hiddenNames + titleSuffix));
+      }
+    }
+
+    function renderPeerTypingStrip() {
+      if (!peerTypingStrip) return;
+      var wrap = $id('peerTypingStripWrap');
+      var suffix = ' — 같은 문단 타이핑 중';
+      if (!currentCourse || !lastPlayersData) {
+        peerTypingStrip.innerHTML = '';
+        if (wrap) wrap.setAttribute('aria-hidden', 'true');
+        return;
+      }
+      var peers = collectPeersOnPassage(passageIndex);
+      fillPeerAvatarStrip(peerTypingStrip, peers, suffix);
       if (wrap) {
-        var empty = peerTypingStrip.children.length === 0;
+        var empty = peers.length === 0;
         wrap.setAttribute('aria-hidden', empty ? 'true' : 'false');
-        wrap.setAttribute('aria-label', '같은 문단을 입력 중인 참가자');
+        wrap.setAttribute('aria-label', peers.length
+          ? ('같은 문단을 입력 중인 참가자 ' + peers.length + '명')
+          : '같은 문단을 입력 중인 참가자');
       }
     }
 
     function renderDonePassagePeers() {
       if (!donePassagesEl) return;
       var strips = donePassagesEl.querySelectorAll('.done-passage-peers');
+      var suffix = ' — 이 문단 입력 중';
       if (!currentCourse || !lastPlayersData) {
         strips.forEach(function (s) { s.innerHTML = ''; });
         return;
       }
-      var stale = Date.now() - 45000;
       strips.forEach(function (strip) {
-        strip.innerHTML = '';
         var row = strip.closest('.done-passage-row');
         if (!row) return;
         var targetIdx = parseInt(row.getAttribute('data-passage-index'), 10);
         if (isNaN(targetIdx)) return;
-        Object.keys(lastPlayersData).forEach(function (id) {
-          if (id === playerId) return;
-          var o = lastPlayersData[id] || {};
-          var idx = typeof o.passageIndex === 'number' ? o.passageIndex : -1;
-          if (idx !== targetIdx || !o.updatedAt || o.updatedAt < stale) return;
-          var nick = o.nickname || '?';
-          strip.appendChild(peerAvatarEl(nick, id, nick + ' — 이 문단 입력 중'));
-        });
+        fillPeerAvatarStrip(strip, collectPeersOnPassage(targetIdx), suffix);
       });
     }
 
