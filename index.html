@@ -4,6 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>강의 노트 · 워크스페이스</title>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-2J2JXGWMPR"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2J2JXGWMPR');
+  </script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -113,6 +121,53 @@
       align-items: center;
       gap: 20px;
       flex-wrap: wrap;
+      min-height: 34px;
+      border-radius: 4px;
+      transition: background 0.12s, outline 0.12s;
+    }
+    .import-upload-wrap.is-dragover {
+      background: rgba(35, 131, 226, 0.06);
+      outline: 2px dashed rgba(35, 131, 226, 0.45);
+      outline-offset: 2px;
+    }
+    .material-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      max-width: min(100%, 360px);
+      padding: 6px 6px 6px 12px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: rgba(55, 53, 47, 0.05);
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.3;
+    }
+    .material-chip-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 300px;
+    }
+    .material-chip-remove {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: none;
+      border-radius: 3px;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .material-chip-remove:hover {
+      background: var(--hover);
+      color: var(--text);
     }
     .import-upload-tip {
       position: relative;
@@ -634,6 +689,12 @@
       background: var(--bg); transition: box-shadow 0.15s;
     }
     .rp-card:hover { box-shadow: 0 1px 6px rgba(15,15,15,0.08); }
+    .rp-card.rp-card--me {
+      background: rgba(35, 131, 226, 0.08);
+      border-color: rgba(35, 131, 226, 0.35);
+    }
+    .rp-card--me .rp-name { color: #1a6bc9; font-weight: 600; }
+    .rp-card--me .rp-wpm { color: #2383e2; }
     .rp-card-head {
       display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
     }
@@ -681,6 +742,76 @@
     .modal-actions .cancel { color: var(--text-muted); }
     .modal-actions .cancel:hover { background: var(--hover); }
     .modal-actions .submit { background: var(--accent-blue); color: #fff; font-weight: 500; }
+  /* ─── 집중 모달 (Figma Frame) ─── */
+    .focus-pause-overlay .focus-pause-modal {
+      position: relative;
+      width: 100%;
+      max-width: 366px;
+      padding: 19px 22px;
+      border-radius: 12px;
+      border: none;
+      background: #fff;
+      box-shadow: 0 8px 40px rgba(15, 15, 15, 0.14);
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+      box-sizing: border-box;
+    }
+    .focus-pause-close {
+      align-self: flex-end;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      margin: 0 0 -4px;
+      padding: 0;
+      border: none;
+      background: none;
+      color: #9b9b9b;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .focus-pause-close:hover { color: var(--text); }
+    .focus-pause-close svg { display: block; width: 13px; height: 13px; }
+    .focus-pause-message {
+      margin: 0;
+      padding: 0 8px;
+    }
+    .focus-pause-line {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1.8;
+      letter-spacing: -0.5px;
+      color: #000;
+      word-break: keep-all;
+    }
+    .focus-pause-course {
+      font-weight: 600;
+    }
+    .focus-pause-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 47px;
+      margin-top: 12px;
+      padding: 0 16px;
+      border: none;
+      border-radius: 12px;
+      background: #1a1a1a;
+      color: #fff;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      line-height: 22px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .focus-pause-btn:hover { background: #333; }
   </style>
 </head>
 <body>
@@ -695,6 +826,19 @@
         <button type="button" class="cancel" id="nickCancel">취소</button>
         <button type="button" class="submit" id="nickJoin">확인</button>
       </div>
+    </div>
+  </div>
+
+  <div id="focusPauseOverlay" class="overlay focus-pause-overlay hidden" aria-hidden="true">
+    <div class="focus-pause-modal" role="dialog" aria-labelledby="focusPauseMessage">
+      <button type="button" class="focus-pause-close" id="focusPauseClose" aria-label="닫기">
+        <svg viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </button>
+      <div class="focus-pause-message" id="focusPauseMessage">
+        <p class="focus-pause-line">지금은</p>
+        <p class="focus-pause-line"><span class="focus-pause-course" id="focusPauseCourseName">[수업]</span> 수업에 집중하나보네요</p>
+      </div>
+      <button type="button" class="focus-pause-btn" id="focusPauseResumeBtn">다시 딴짓하기</button>
     </div>
   </div>
 
@@ -821,11 +965,15 @@
               </div>
               <div class="prop-row">
                 <span class="prop-label"><img class="prop-label-icon" src="assets/attatchment.png" alt=""> 자료</span>
-                <span class="prop-value import-upload-wrap">
+                <span class="prop-value import-upload-wrap" id="importUploadWrap">
                   <button type="button" class="import-main-btn" id="importMainBtn">
                     <span>↑</span>
                     <span>Import · 강의자료</span>
                   </button>
+                  <div id="materialChip" class="material-chip hidden" aria-live="polite">
+                    <span class="material-chip-name" id="materialChipName"></span>
+                    <button type="button" class="material-chip-remove" id="materialChipRemove" aria-label="강의자료 삭제">×</button>
+                  </div>
                   <span class="import-upload-tip" id="importUploadTip" role="tooltip">여기서 강의자료를 업로드할 수 있어요</span>
                 </span>
               </div>
@@ -947,6 +1095,10 @@
     var sidebarTitle  = $id('sidebarTitle');
     var courseListEl  = $id('courseList');
     var importMainBtn = $id('importMainBtn');
+    var importUploadWrap = $id('importUploadWrap');
+    var materialChip = $id('materialChip');
+    var materialChipName = $id('materialChipName');
+    var materialChipRemove = $id('materialChipRemove');
     var importUploadTip = $id('importUploadTip');
     var timeInfo      = $id('timeInfo');
     var breadcrumb    = $id('breadcrumb');
@@ -988,6 +1140,58 @@
     }
     function hideImportUploadTip() {
       if (importUploadTip) importUploadTip.classList.add('hidden');
+    }
+
+    function setRoomMaterialMeta(meta) {
+      roomMaterialMeta = meta;
+      updateMaterialUI();
+    }
+
+    function updateMaterialUI() {
+      var has = !!(roomMaterialMeta && roomMaterialMeta.fileName);
+      if (importMainBtn) importMainBtn.classList.toggle('hidden', has);
+      if (materialChip) materialChip.classList.toggle('hidden', !has);
+      if (materialChipName && has) {
+        materialChipName.textContent = roomMaterialMeta.fileName;
+        materialChipName.title = roomMaterialMeta.fileName;
+      }
+      if (has) hideImportUploadTip();
+    }
+
+    function isAcceptedMaterialFile(file) {
+      if (!file || !file.name) return false;
+      var n = file.name.toLowerCase();
+      return n.endsWith('.pdf') || n.endsWith('.txt') || n.endsWith('.md') ||
+        (file.type && (file.type.indexOf('text/') === 0 || file.type === 'application/pdf'));
+    }
+
+    function handleDroppedFiles(fileList) {
+      if (!fileList || !fileList.length || !currentCourse) return;
+      for (var i = 0; i < fileList.length; i++) {
+        if (isAcceptedMaterialFile(fileList[i])) {
+          handleFileUpload(fileList[i]);
+          return;
+        }
+      }
+      setStatus('PDF·TXT·MD 파일만 업로드할 수 있습니다.');
+    }
+
+    async function clearRoomMaterial() {
+      if (!currentCourse) return;
+      try {
+        if (firebaseOk) {
+          await db.ref(roomPath(currentCourse.id) + '/material').remove();
+        }
+        setRoomMaterialMeta(null);
+        passages = DEFAULT_PASSAGES.slice();
+        resetFullSession();
+        renderPassage();
+        showImportUploadTip();
+        setStatus('강의자료를 삭제했습니다.');
+      } catch (e) {
+        console.error(e);
+        setStatus('강의자료를 삭제하지 못했습니다.');
+      }
     }
 
     /* ================================================================
@@ -1120,6 +1324,16 @@
     var composing = false;
     var passageComplete = false;
     var sessionAllComplete = false;
+    var roomMaterialMeta = null;
+    var IDLE_PAUSE_MS = 5000;
+    var idleTimer = null;
+    var typingPaused = false;
+    var sessionActiveMs = 0;
+    var activeSegmentStart = null;
+    var focusPauseOverlay = $id('focusPauseOverlay');
+    var focusPauseResumeBtn = $id('focusPauseResumeBtn');
+    var focusPauseClose = $id('focusPauseClose');
+    var focusPauseCourseName = $id('focusPauseCourseName');
 
     /* ================================================================
        Firebase
@@ -1433,9 +1647,11 @@
 
       resetFullSession();
       passages = DEFAULT_PASSAGES.slice();
+      setRoomMaterialMeta(null);
       renderPassage();
       setStatus('수업방에 입장했습니다. 강의자료를 업로드하거나 타이핑을 시작하세요.');
       showImportUploadTip();
+      updateMaterialUI();
       renderFullSidebar();
 
       if (!firebaseOk) {
@@ -1474,8 +1690,17 @@
           passages = cleanedList.length ? cleanedList : rawList;
           resetFullSession();
           renderPassage();
+          setRoomMaterialMeta({
+            fileName: (mat && mat.fileName) ? String(mat.fileName) : ('강의자료 (' + passages.length + '개 구간)'),
+            uploadedBy: (mat && mat.uploadedBy) || '',
+          });
           setStatus(mat.uploadedBy + '님이 공유한 강의자료 (' + passages.length + '개 구간). 타이핑을 시작하세요.');
-          hideImportUploadTip();
+        } else {
+          setRoomMaterialMeta(null);
+          passages = DEFAULT_PASSAGES.slice();
+          resetFullSession();
+          renderPassage();
+          showImportUploadTip();
         }
       });
 
@@ -1498,6 +1723,8 @@
       if (broadcastTimer) { clearInterval(broadcastTimer); broadcastTimer = null; }
       lastPlayersData = null;
       currentCourse = null;
+      setRoomMaterialMeta(null);
+      resetTypingTimers();
       hideImportUploadTip();
       renderPeerTypingStrip();
       renderDonePassagePeers();
@@ -1625,10 +1852,11 @@
         return;
       }
       rankList.innerHTML = active.map(function (row, idx) {
-        return '<div class="rp-card">' +
+        var isMe = row.id === playerId;
+        return '<div class="rp-card' + (isMe ? ' rp-card--me' : '') + '">' +
           '<div class="rp-card-head">' +
             '<div class="rp-avatar" style="background:' + avatarColor(row.id) + '">' + esc(row.nickname.charAt(0)) + '</div>' +
-            '<span class="rp-name">' + esc(row.nickname) + '</span>' +
+            '<span class="rp-name">' + esc(row.nickname) + (isMe ? ' (나)' : '') + '</span>' +
             '<span class="rp-rank">#' + (idx + 1) + '</span>' +
           '</div>' +
           '<div class="rp-body">' +
@@ -1648,6 +1876,29 @@
       fileInput.value = '';
       if (f) handleFileUpload(f);
     });
+    if (materialChipRemove) {
+      materialChipRemove.addEventListener('click', function (e) {
+        e.stopPropagation();
+        clearRoomMaterial();
+      });
+    }
+    if (importUploadWrap) {
+      importUploadWrap.addEventListener('dragover', function (e) {
+        if (!currentCourse) return;
+        e.preventDefault();
+        importUploadWrap.classList.add('is-dragover');
+      });
+      importUploadWrap.addEventListener('dragleave', function (e) {
+        if (e.relatedTarget && importUploadWrap.contains(e.relatedTarget)) return;
+        importUploadWrap.classList.remove('is-dragover');
+      });
+      importUploadWrap.addEventListener('drop', function (e) {
+        e.preventDefault();
+        importUploadWrap.classList.remove('is-dragover');
+        if (!currentCourse) return;
+        handleDroppedFiles(e.dataTransfer && e.dataTransfer.files);
+      });
+    }
 
     async function handleFileUpload(file) {
       if (!currentCourse) return;
@@ -1669,27 +1920,32 @@
         if (firebaseOk) {
           var matRef = db.ref(roomPath(currentCourse.id) + '/material');
           try {
-            await matRef.set({ passages: ps, uploadedBy: nickname || '익명', updatedAt: Date.now() });
+            await matRef.set({
+              passages: ps,
+              uploadedBy: nickname || '익명',
+              fileName: file.name || '강의자료',
+              updatedAt: Date.now(),
+            });
           } catch (fe) {
             console.error(fe);
             setStatus('Firebase에 저장하지 못했습니다. 콘솔(F12) 오류와 Realtime Database 규칙(읽기·쓰기 허용)을 확인하세요.');
             passages = ps;
             resetFullSession();
             renderPassage();
-            hideImportUploadTip();
+            setRoomMaterialMeta({ fileName: file.name || '강의자료', uploadedBy: nickname || '익명' });
             return;
           }
           passages = ps;
           resetFullSession();
           renderPassage();
+          setRoomMaterialMeta({ fileName: file.name || '강의자료', uploadedBy: nickname || '익명' });
           setStatus('강의자료를 업로드했습니다 (' + ps.length + '개 구간). 전체 참가자에게 공유됩니다.');
-          hideImportUploadTip();
         } else {
           passages = ps;
           resetFullSession();
           renderPassage();
+          setRoomMaterialMeta({ fileName: file.name || '강의자료', uploadedBy: nickname || '익명' });
           setStatus('강의자료에서 ' + ps.length + '개 구간을 불러왔습니다.');
-          hideImportUploadTip();
         }
       } catch (e) {
         console.error(e);
@@ -1759,6 +2015,18 @@
     /* ================================================================
        Text cleaning & slicing
        ================================================================ */
+    /** 완성형 한글(가-힣)과 공백만 유지 — |, 자모(ㄱㅏ), 기호 등 제거 */
+    function filterCompleteHangulOnly(t) {
+      if (!t || typeof t !== 'string') return '';
+      return t
+        .replace(/[^\uAC00-\uD7A3 \t\n\r]/g, ' ')
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n[ \t]*/g, '\n')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
     function cleanText(raw) {
       var t = raw;
       if (typeof t === 'string' && typeof t.normalize === 'function') {
@@ -1780,7 +2048,7 @@
       t = t.replace(/[ \t]+/g, ' ');
       t = t.replace(/\n[ \t]*/g, '\n');
       t = t.replace(/\n{3,}/g, '\n\n');
-      return t.trim();
+      return filterCompleteHangulOnly(t);
     }
 
     /** Tesseract OCR만: 한글 포함 줄만 유지 → 기호 줄 제거 → 기존 cleanText·전처리 동일 적용 */
@@ -1792,7 +2060,7 @@
       }
       t = t.replace(/\uFFFD/g, '');
       t = t.replace(/[\u200B-\u200D\uFEFF]/g, '');
-      var hangulLine = /[가-힣]/;
+      var hangulLine = /[\uAC00-\uD7A3]/;
       var lines = t.split(/\n/);
       var kept = [];
       for (var i = 0; i < lines.length; i++) {
@@ -1800,11 +2068,11 @@
         var trimmed = line.trim();
         if (!trimmed) continue;
         if (!hangulLine.test(trimmed)) continue;
-        var letters = trimmed.replace(/[^0-9A-Za-z\uAC00-\uD7A3\u3131-\u318E]/g, '').length;
+        var syllables = trimmed.replace(/[^\uAC00-\uD7A3]/g, '').length;
         var nonWs = trimmed.replace(/\s/g, '').length;
         if (nonWs === 0) continue;
-        if (letters === 0 && nonWs <= 6) continue;
-        if (nonWs >= 8 && letters / nonWs < 0.08) continue;
+        if (syllables === 0 && nonWs <= 6) continue;
+        if (nonWs >= 8 && syllables / nonWs < 0.08) continue;
         kept.push(line);
       }
       t = kept.join('\n');
@@ -1814,10 +2082,16 @@
       return cleanText(t.trim());
     }
 
-    /** 한 지문이 너무 길 때 ≈세 줄 분량으로 분할 (문장부호·공백 우선) */
-    var PASSAGE_MAX_CHARS = 126;
+    /** 한 지문 ≈네 줄 분량 (최대 길이·채우기 목표·최대 문단 수) */
+    var PASSAGE_MAX_CHARS = 168;
+    var PASSAGE_MIN_FILL_CHARS = Math.floor(PASSAGE_MAX_CHARS * 0.78);
+    var PASSAGE_MAX_COUNT = 6;
 
-    function splitPassageToApproxTwoLines(s, maxLen) {
+    function isValidPassageSegment(seg) {
+      return seg && (seg.split(/\s+/).filter(Boolean).length >= 2 || seg.replace(/\s/g, '').length >= 18);
+    }
+
+    function splitPassageToMaxLen(s, maxLen) {
       maxLen = maxLen || PASSAGE_MAX_CHARS;
       if (!s || typeof s !== 'string') return [];
       s = s.replace(/\s+/g, ' ').trim();
@@ -1857,6 +2131,94 @@
       });
     }
 
+    /** 짧은 조각도 이어 붙여 ≈4줄(목표 길이)까지 채운 뒤, 넘치면 분할 */
+    function normalizePassageList(segments) {
+      if (!segments || !segments.length) return [];
+      var maxLen = PASSAGE_MAX_CHARS;
+      var minFill = PASSAGE_MIN_FILL_CHARS;
+      var pieces = [];
+      segments.forEach(function (seg) {
+        if (typeof seg !== 'string') return;
+        var s = seg.replace(/\s+/g, ' ').trim();
+        if (!s) return;
+        splitPassageToMaxLen(s, maxLen).forEach(function (p) {
+          if (isValidPassageSegment(p)) pieces.push(p);
+        });
+      });
+      if (!pieces.length) return [];
+
+      var packed = [];
+      var buf = '';
+      for (var i = 0; i < pieces.length; i++) {
+        var piece = pieces[i];
+        if (!buf) {
+          buf = piece;
+          continue;
+        }
+        var combined = (buf + ' ' + piece).trim();
+        if (combined.length <= maxLen) {
+          buf = combined;
+        } else {
+          packed.push(buf);
+          buf = piece;
+        }
+      }
+      if (buf) packed.push(buf);
+
+      var j = 0;
+      while (j < packed.length - 1) {
+        if (packed[j].length >= minFill) { j++; continue; }
+        var merged = (packed[j] + ' ' + packed[j + 1]).trim();
+        if (merged.length <= maxLen) {
+          packed[j] = merged;
+          packed.splice(j + 1, 1);
+        } else {
+          j++;
+        }
+      }
+
+      if (packed.length > 1) {
+        var lastIdx = packed.length - 1;
+        if (packed[lastIdx].length < minFill) {
+          var tailMerge = (packed[lastIdx - 1] + ' ' + packed[lastIdx]).trim();
+          if (tailMerge.length <= maxLen) {
+            packed[lastIdx - 1] = tailMerge;
+            packed.pop();
+          }
+        }
+      }
+
+      var out = [];
+      packed.forEach(function (p) {
+        if (p.length <= maxLen) {
+          out.push(p);
+        } else {
+          splitPassageToMaxLen(p, maxLen).forEach(function (x) {
+            if (isValidPassageSegment(x)) out.push(x);
+          });
+        }
+      });
+
+      while (out.length > PASSAGE_MAX_COUNT) {
+        var mergedPair = false;
+        for (var k = out.length - 2; k >= 0; k--) {
+          var pair = (out[k] + ' ' + out[k + 1]).trim();
+          if (pair.length <= maxLen) {
+            out[k] = pair;
+            out.splice(k + 1, 1);
+            mergedPair = true;
+            break;
+          }
+        }
+        if (!mergedPair) {
+          out = out.slice(0, PASSAGE_MAX_COUNT);
+          break;
+        }
+      }
+
+      return out;
+    }
+
     /** Firebase RTDB는 배열을 저장하면 스냅샷에서 {0:'…',1:'…'} 객체로 옴 → 문자열 배열로 통일 */
     function materialPassagesToArray(raw) {
       if (!raw) return [];
@@ -1879,18 +2241,13 @@
     /** Firebase 등에 저장된 지문 배열을 항상 동일 규칙으로 재정리 (예전 업로드·미전처리 보정 + 길이 분할) */
     function cleansePassageList(list) {
       if (!list || !list.length) return [];
-      var acc = [];
+      var raw = [];
       list.forEach(function (p) {
         if (typeof p !== 'string') return;
         var one = cleanText(p.replace(/\n+/g, ' '));
-        if (!one) return;
-        splitPassageToApproxTwoLines(one, PASSAGE_MAX_CHARS).forEach(function (seg) {
-          if (seg.split(/\s+/).filter(Boolean).length >= 2 || seg.replace(/\s/g, '').length >= 18) {
-            acc.push(seg);
-          }
-        });
+        if (one) raw.push(one);
       });
-      return acc;
+      return normalizePassageList(raw);
     }
 
     /** allowDefaultFallback: false 이면 빈 결과 시 [] (업로드 시 기본 딴짓 지문으로 착각하지 않도록) */
@@ -1903,25 +2260,7 @@
       }).filter(function (p) {
         return p.split(/\s+/).filter(Boolean).length >= 2;
       });
-      var merged = [];
-      var buf = '';
-      for (var i = 0; i < parts.length; i++) {
-        if ((buf + ' ' + parts[i]).trim().length < 40) {
-          buf = (buf + ' ' + parts[i]).trim();
-        } else {
-          if (buf) merged.push(buf);
-          buf = parts[i];
-        }
-      }
-      if (buf && buf.split(/\s+/).filter(Boolean).length >= 2) merged.push(buf);
-
-      var splitMerged = [];
-      for (var j = 0; j < merged.length; j++) {
-        splitMerged = splitMerged.concat(splitPassageToApproxTwoLines(merged[j], PASSAGE_MAX_CHARS));
-      }
-      merged = splitMerged;
-
-      if (merged.length > 20) merged = merged.slice(0, 20);
+      var merged = normalizePassageList(parts);
       return merged.length ? merged : (allowDefaultFallback ? DEFAULT_PASSAGES.slice() : []);
     }
 
@@ -1947,6 +2286,9 @@
     }
 
     function showSessionComplete() {
+      clearIdleTimer();
+      hideFocusPauseModal();
+      typingPaused = false;
       sessionAllComplete = true;
       if (donePassagesEl) donePassagesEl.innerHTML = '';
       if (sessionCompletePanel) {
@@ -1971,8 +2313,82 @@
       if (typingHost) typingHost.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
+    function clearIdleTimer() {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+    }
+
+    function resetTypingTimers() {
+      clearIdleTimer();
+      typingPaused = false;
+      sessionActiveMs = 0;
+      activeSegmentStart = null;
+      hideFocusPauseModal();
+    }
+
+    function getSessionActiveMs() {
+      if (!sessionStart) return 0;
+      if (typingPaused) return sessionActiveMs;
+      if (!activeSegmentStart) return sessionActiveMs;
+      return sessionActiveMs + (Date.now() - activeSegmentStart);
+    }
+
+    function hideFocusPauseModal() {
+      if (focusPauseOverlay) {
+        focusPauseOverlay.classList.add('hidden');
+        focusPauseOverlay.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    function showFocusPauseModal() {
+      if (focusPauseCourseName) {
+        var courseTitle = currentCourse && currentCourse['교과목명']
+          ? String(currentCourse['교과목명']).trim()
+          : '수업';
+        focusPauseCourseName.textContent = '[' + courseTitle + ']';
+      }
+      if (focusPauseOverlay) {
+        focusPauseOverlay.classList.remove('hidden');
+        focusPauseOverlay.setAttribute('aria-hidden', 'false');
+      }
+    }
+
+    function onTypingIdle() {
+      if (!currentCourse || sessionAllComplete || typingPaused || !sessionStart) return;
+      if (activeSegmentStart) {
+        sessionActiveMs += Date.now() - activeSegmentStart;
+        activeSegmentStart = null;
+      }
+      typingPaused = true;
+      clearIdleTimer();
+      if (ta) ta.readOnly = true;
+      showFocusPauseModal();
+      updateStats();
+    }
+
+    function scheduleIdleCheck() {
+      clearIdleTimer();
+      if (!currentCourse || sessionAllComplete || typingPaused || !sessionStart) return;
+      idleTimer = setTimeout(onTypingIdle, IDLE_PAUSE_MS);
+    }
+
+    function resumeAfterFocusPause() {
+      hideFocusPauseModal();
+      typingPaused = false;
+      if (!currentCourse || sessionAllComplete) return;
+      if (ta) {
+        ta.readOnly = false;
+        activeSegmentStart = Date.now();
+        scheduleIdleCheck();
+        setTimeout(function () { ta.focus(); }, 0);
+      }
+    }
+
     function resetFullSession() {
       hideSessionComplete();
+      resetTypingTimers();
       resetPassageInput();
       passageIndex = 0;
       sessionStart = null;
@@ -1992,6 +2408,7 @@
     function advanceToNext() {
       var p = currentPassage();
       if (!p.length) return;
+      clearIdleTimer();
       sessionTotalCorrect += countCorrectInCurrent();
       sessionTotalChars += userInput.length;
 
@@ -2117,23 +2534,18 @@
         return;
       }
       var html = '';
+      var pos = Math.min(userInput.length, p.length);
       var i = 0;
-      for (; i < userInput.length && i < p.length; i++) {
+      for (; i < pos; i++) {
         if (userInput[i] === p[i]) {
           html += '<span class="done">' + esc(p[i]) + '</span>';
         } else {
           html += '<span class="err">' + esc(p[i]) + '</span>';
         }
       }
-      var curAt = 0;
-      while (curAt < userInput.length && curAt < p.length && userInput[curAt] === p[curAt]) curAt++;
-      if (curAt < p.length) {
-        if (curAt >= userInput.length || userInput[curAt] === p[curAt]) {
-          html += '<span class="cur">' + esc(p[curAt]) + '</span>';
-          html += '<span class="pending">' + esc(p.slice(curAt + 1)) + '</span>';
-        } else {
-          html += '<span class="pending">' + esc(p.slice(curAt + 1)) + '</span>';
-        }
+      if (pos < p.length) {
+        html += '<span class="cur">' + esc(p[pos]) + '</span>';
+        html += '<span class="pending">' + esc(p.slice(pos + 1)) + '</span>';
       }
       if (passageComplete) html += '<span class="enter-hint">Enter ↵</span>';
       passageEl.innerHTML = html;
@@ -2144,8 +2556,8 @@
     /** 타: (입력 완료·일치한 글자 수 × 2) ÷ 경과 분. wpm 필드명은 Firebase 호환용 */
     function computeWpmAccuracy() {
       if (!sessionStart) return { wpm: 0, accuracy: 100 };
-      var elapsedMin = (Date.now() - sessionStart) / 60000;
-      if (elapsedMin < 1 / 60) return { wpm: 0, accuracy: 100 };
+      var elapsedMin = getSessionActiveMs() / 60000;
+      if (getSessionActiveMs() < 1000) return { wpm: 0, accuracy: 100 };
       var curCorrect = countCorrectInCurrent();
       var completedChars = sessionTotalCorrect + curCorrect;
       var totalChars = sessionTotalChars + userInput.length;
@@ -2182,25 +2594,13 @@
     /* ================================================================
        Input handling (textarea with IME)
        ================================================================ */
-    /** 맞는 글자만 누적; 현재 칸에서 틀린 글자 1개까지 허용(빨간 표시용), 그 다음 칸은 막음 */
     function clampInputToPassage(raw, passage) {
       if (!passage) return '';
-      var out = '';
-      for (var i = 0; i < raw.length && i < passage.length; i++) {
-        if (raw[i] === passage[i]) {
-          out += raw[i];
-        } else if (out.length === i) {
-          out += raw[i];
-          break;
-        } else {
-          break;
-        }
-      }
-      return out;
+      return raw.replace(/[\r\n]/g, '').slice(0, passage.length);
     }
 
     function applyInputFromTa() {
-      if (!nickname || composing || !currentCourse || sessionAllComplete) return;
+      if (!nickname || composing || !currentCourse || sessionAllComplete || typingPaused) return;
       var p = currentPassage();
       if (!p.length) return;
       var raw = ta.value;
@@ -2212,10 +2612,21 @@
         advanceToNext();
         return;
       }
-      if (!sessionStart && userInput.length > 0) sessionStart = Date.now();
-      passageComplete = (p.length > 0 && userInput.length === p.length && userInput === p);
+      if (!sessionStart && userInput.length > 0) {
+        sessionStart = Date.now();
+        activeSegmentStart = Date.now();
+      }
+      scheduleIdleCheck();
+      passageComplete = (p.length > 0 && userInput.length >= p.length);
       renderPassage();
       updateStats();
+    }
+
+    if (focusPauseResumeBtn) {
+      focusPauseResumeBtn.addEventListener('click', resumeAfterFocusPause);
+    }
+    if (focusPauseClose) {
+      focusPauseClose.addEventListener('click', resumeAfterFocusPause);
     }
 
     ta.addEventListener('compositionstart', function () { composing = true; });
