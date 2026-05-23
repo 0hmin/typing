@@ -705,7 +705,7 @@
     <aside class="sidebar">
       <div class="workspace-row">
         <span class="ws-icon"></span>
-        <span>대학교 워크스페이스</span>
+        <span>이화여자대학교</span>
       </div>
       <div class="search-wrap">
         <input type="text" class="search-input" id="searchInput" placeholder="수업 검색…" autocomplete="off" />
@@ -757,7 +757,7 @@
 
             <div class="db-view">
               <div class="db-header">
-                <span class="db-title">🏆 오늘의 랭킹 (타자 속도)</span>
+                <span class="db-title">🏆 오늘의 랭킹 (타)</span>
                 <span class="db-count" id="dailyCount">0건</span>
               </div>
               <div class="db-table-wrap">
@@ -766,7 +766,7 @@
                     <tr>
                       <th class="db-th-num">#</th>
                       <th>닉네임</th>
-                      <th>타자 속도</th>
+                      <th>타</th>
                       <th>수업</th>
                       <th>땡땡이 횟수</th>
                     </tr>
@@ -790,7 +790,7 @@
                       <th class="db-th-num">#</th>
                       <th>닉네임</th>
                       <th>땡땡이 횟수</th>
-                      <th>타자 속도</th>
+                      <th>타</th>
                       <th>수업</th>
                     </tr>
                   </thead>
@@ -885,7 +885,7 @@
                 </div>
               </div>
               <div class="stats-row">
-                <span>WPM <strong id="wpmEl">0</strong></span>
+                <span>타 <strong id="wpmEl">0</strong></span>
                 <span>정확도 <strong id="accEl">100</strong>%</span>
                 <span>문단 <strong id="progEl">1</strong> / <strong id="totalEl">1</strong></span>
               </div>
@@ -1507,7 +1507,7 @@
       welcomeView.classList.remove('hidden');
       rightPanel.classList.add('hidden');
       avatarList.innerHTML = '';
-      breadcrumb.textContent = '대학교 워크스페이스';
+      breadcrumb.textContent = '이화여자대학교';
       renderFullSidebar();
       renderTopbarOnlineAvatars(lastOnlineUsersData);
     }
@@ -1519,10 +1519,16 @@
     /* ================================================================
        Avatars (Notion-style)
        ================================================================ */
-    function avatarColor(name) {
-      var h = 0;
-      for (var i = 0; i < name.length; i++) h = ((h << 5) - h + name.charCodeAt(i)) | 0;
-      return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+    var avatarColorByKey = {};
+
+    /** 참가자마다 7색 팔레트 중 하나를 랜덤 배정(같은 사람은 세션 동안 유지) */
+    function avatarColor(key) {
+      key = String(key || '').trim() || '?';
+      if (!avatarColorByKey[key]) {
+        var idx = Math.floor(Math.random() * AVATAR_COLORS.length);
+        avatarColorByKey[key] = AVATAR_COLORS[idx];
+      }
+      return avatarColorByKey[key];
     }
 
     function renderTopbarOnlineAvatars(data) {
@@ -1562,40 +1568,38 @@
         return;
       }
       var stale = Date.now() - 120000;
-      var names = [];
+      var active = [];
       Object.keys(playersObj).forEach(function (id) {
         var o = playersObj[id];
-        if (o && o.updatedAt > stale) names.push(o.nickname || '?');
+        if (o && o.updatedAt > stale) active.push({ id: id, nick: o.nickname || '?' });
       });
-      roomOnline.textContent = names.length + '명이 딴짓중';
-      var show = names.slice(0, 8);
-      show.forEach(function (n) {
+      roomOnline.textContent = active.length + '명이 딴짓중';
+      active.slice(0, 8).forEach(function (row) {
         var d = document.createElement('div');
         d.className = 'avatar';
-        d.style.background = avatarColor(n);
-        d.textContent = n.charAt(0);
-        d.title = n;
+        d.style.background = avatarColor(row.id);
+        d.textContent = row.nick.charAt(0);
+        d.title = row.nick;
         propAvatars.appendChild(d);
       });
-      if (names.length > 8) {
+      if (active.length > 8) {
         var ov = document.createElement('div');
         ov.className = 'avatar avatar-overflow';
-        ov.textContent = '+' + (names.length - 8);
+        ov.textContent = '+' + (active.length - 8);
         propAvatars.appendChild(ov);
       }
-      var topShow = names.slice(0, 3);
-      topShow.forEach(function (n) {
+      active.slice(0, 3).forEach(function (row) {
         var d = document.createElement('div');
         d.className = 'avatar';
-        d.style.background = avatarColor(n);
-        d.textContent = n.charAt(0);
-        d.title = n;
+        d.style.background = avatarColor(row.id);
+        d.textContent = row.nick.charAt(0);
+        d.title = row.nick;
         avatarList.appendChild(d);
       });
-      if (names.length > 3) {
+      if (active.length > 3) {
         var ov2 = document.createElement('div');
         ov2.className = 'avatar avatar-overflow';
-        ov2.textContent = '+' + (names.length - 3);
+        ov2.textContent = '+' + (active.length - 3);
         avatarList.appendChild(ov2);
       }
     }
@@ -1611,7 +1615,7 @@
       var list = [];
       Object.keys(playersObj).forEach(function (id) {
         var o = playersObj[id] || {};
-        list.push({ nickname: o.nickname || '익명', wpm: Number(o.wpm) || 0, accuracy: Number(o.accuracy) || 0, updatedAt: o.updatedAt || 0 });
+        list.push({ id: id, nickname: o.nickname || '익명', wpm: Number(o.wpm) || 0, accuracy: Number(o.accuracy) || 0, updatedAt: o.updatedAt || 0 });
       });
       var stale = Date.now() - 120000;
       var active = list.filter(function (x) { return x.updatedAt > stale; });
@@ -1623,13 +1627,13 @@
       rankList.innerHTML = active.map(function (row, idx) {
         return '<div class="rp-card">' +
           '<div class="rp-card-head">' +
-            '<div class="rp-avatar" style="background:' + avatarColor(row.nickname) + '">' + esc(row.nickname.charAt(0)) + '</div>' +
+            '<div class="rp-avatar" style="background:' + avatarColor(row.id) + '">' + esc(row.nickname.charAt(0)) + '</div>' +
             '<span class="rp-name">' + esc(row.nickname) + '</span>' +
             '<span class="rp-rank">#' + (idx + 1) + '</span>' +
           '</div>' +
           '<div class="rp-body">' +
             '<span class="rp-wpm">' + row.wpm + '</span>' +
-            '<span class="rp-wpm-label">WPM</span>' +
+            '<span class="rp-wpm-label">타</span>' +
             '<span class="rp-acc">정확도 ' + row.accuracy + '%</span>' +
           '</div></div>';
       }).join('');
@@ -2036,10 +2040,10 @@
       restartTypingBtn.addEventListener('click', restartTypingSession);
     }
 
-    function peerAvatarEl(nick, title) {
+    function peerAvatarEl(nick, colorKey, title) {
       var d = document.createElement('div');
       d.className = 'type-peer-avatar';
-      d.style.background = avatarColor(nick);
+      d.style.background = avatarColor(colorKey || nick);
       d.textContent = nick.charAt(0) || '?';
       d.title = title || (nick + ' — 같은 문단 타이핑 중');
       return d;
@@ -2060,7 +2064,7 @@
         var idx = typeof o.passageIndex === 'number' ? o.passageIndex : -1;
         if (idx !== passageIndex || !o.updatedAt || o.updatedAt < stale) return;
         var nick = o.nickname || '?';
-        peerTypingStrip.appendChild(peerAvatarEl(nick, nick + ' — 같은 문단 타이핑 중'));
+        peerTypingStrip.appendChild(peerAvatarEl(nick, id, nick + ' — 같은 문단 타이핑 중'));
       });
       if (wrap) {
         var empty = peerTypingStrip.children.length === 0;
@@ -2089,7 +2093,7 @@
           var idx = typeof o.passageIndex === 'number' ? o.passageIndex : -1;
           if (idx !== targetIdx || !o.updatedAt || o.updatedAt < stale) return;
           var nick = o.nickname || '?';
-          strip.appendChild(peerAvatarEl(nick, nick + ' — 이 문단 입력 중'));
+          strip.appendChild(peerAvatarEl(nick, id, nick + ' — 이 문단 입력 중'));
         });
       });
     }
@@ -2118,7 +2122,7 @@
         if (userInput[i] === p[i]) {
           html += '<span class="done">' + esc(p[i]) + '</span>';
         } else {
-          html += '<span class="err">' + esc(userInput[i]) + '</span>';
+          html += '<span class="err">' + esc(p[i]) + '</span>';
         }
       }
       var curAt = 0;
@@ -2137,16 +2141,18 @@
       renderDonePassagePeers();
     }
 
+    /** 타: (입력 완료·일치한 글자 수 × 2) ÷ 경과 분. wpm 필드명은 Firebase 호환용 */
     function computeWpmAccuracy() {
       if (!sessionStart) return { wpm: 0, accuracy: 100 };
       var elapsedMin = (Date.now() - sessionStart) / 60000;
       if (elapsedMin < 1 / 60) return { wpm: 0, accuracy: 100 };
       var curCorrect = countCorrectInCurrent();
-      var totalCorrect = sessionTotalCorrect + curCorrect;
+      var completedChars = sessionTotalCorrect + curCorrect;
       var totalChars = sessionTotalChars + userInput.length;
-      var wpm = (totalCorrect / 5) / elapsedMin;
-      var accuracy = totalChars === 0 ? 100 : Math.round((totalCorrect / totalChars) * 1000) / 10;
-      return { wpm: Math.round(wpm * 10) / 10, accuracy: accuracy };
+      var types = completedChars * 2;
+      var tpm = types / elapsedMin;
+      var accuracy = totalChars === 0 ? 100 : Math.round((completedChars / totalChars) * 1000) / 10;
+      return { wpm: Math.round(tpm * 10) / 10, accuracy: accuracy };
     }
 
     function updateStats() {
@@ -2233,7 +2239,7 @@
     workspaceRow.style.cursor = 'pointer';
     workspaceRow.addEventListener('click', function () {
       if (currentCourse) leaveRoom();
-      breadcrumb.textContent = '대학교 워크스페이스';
+      breadcrumb.textContent = '이화여자대학교';
     });
 
     /* ================================================================
