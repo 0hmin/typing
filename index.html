@@ -3,7 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>강의 노트 · 워크스페이스</title>
+  <title>같이 딴짓하자!</title>
+  <!-- OG_SHARE -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="같이 딴짓하자!" />
+  <meta property="og:description" content="수업 시간에 몰래 같이 타이핑해요." />
+  <meta property="og:image" content="/assets/mudo.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="같이 딴짓하자!" />
+  <meta name="twitter:description" content="수업 시간에 몰래 같이 타이핑해요." />
+  <meta name="twitter:image" content="/assets/mudo.jpg" />
+  <!-- /OG_SHARE -->
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-2J2JXGWMPR"></script>
   <script>
@@ -222,6 +232,74 @@
     .tb-btn:hover { background: var(--hover); color: var(--text); }
     .tb-btn.primary { background: var(--accent-blue); color: #fff; font-weight: 500; }
     .tb-btn.primary:hover { filter: brightness(1.05); }
+    .topbar-share-wrap { position: relative; flex-shrink: 0; }
+    .share-popover {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      width: min(420px, calc(100vw - 32px));
+      padding: 16px 18px 18px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 8px 28px rgba(15, 15, 15, 0.12);
+      z-index: 1100;
+      box-sizing: border-box;
+    }
+    .share-popover.hidden { display: none; }
+    .share-popover-title {
+      margin: 0 0 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      position: relative;
+    }
+    .share-popover-title::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: -1px;
+      width: 2.2em;
+      height: 2px;
+      background: var(--text);
+    }
+    .share-popover-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .share-url-input {
+      flex: 1;
+      min-width: 0;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font: inherit;
+      font-size: 13px;
+      color: var(--text);
+      background: #fff;
+    }
+    .share-url-input:focus { outline: none; box-shadow: inset 0 0 0 1px rgba(55, 53, 47, 0.2); }
+    .share-copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .share-copy-btn:hover { background: var(--hover); }
+    .share-copy-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
 
     /* ─── Avatars (Notion-style) ─── */
     .avatar-list { display: flex; align-items: center; margin-right: 8px; }
@@ -881,7 +959,19 @@
           <div class="avatar-list" id="avatarList"></div>
           <span class="topbar-online" id="topbarOnline">0명이 딴짓중</span>
           <button type="button" class="tb-btn">⋯</button>
-          <button type="button" class="tb-btn primary">Share</button>
+          <div class="topbar-share-wrap">
+            <button type="button" class="tb-btn primary" id="shareBtn" aria-expanded="false" aria-controls="sharePopover">Share</button>
+            <div id="sharePopover" class="share-popover hidden" role="dialog" aria-label="공유">
+              <h2 class="share-popover-title">공유</h2>
+              <div class="share-popover-row">
+                <input type="text" class="share-url-input" id="shareUrlInput" readonly aria-label="공유 링크" />
+                <button type="button" class="share-copy-btn" id="shareCopyBtn">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07l-1.41 1.41" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 1 0 7.07 7.07l1.41-1.41" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                  <span id="shareCopyBtnLabel">링크 복사</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -1000,7 +1090,7 @@
             <div id="donePassages"></div>
 
             <div id="sessionCompletePanel" class="session-complete-panel hidden" aria-hidden="true">
-              <img class="session-complete-img" src="assets/mudo.jpg" alt="집중? 해서 딴짓 중…" width="720" />
+              <img id="sessionCompleteImg" class="session-complete-img" src="assets/mudo.jpg" alt="집중? 해서 딴짓 중…" width="720" />
               <div class="must-have-box">
                 <div class="must-have-title">🔥 MUST HAVE</div>
                 <ul class="must-have-checklist">
@@ -1083,6 +1173,31 @@
       "스마트폰의 등장은 딴짓의 패러다임을 완전히 바꾸어 놓았다. 손바닥 안에 들어온 무한한 콘텐츠는 딴짓을 더욱 정교하고 은밀하게 만들었으며 현대인의 평균 집중 지속 시간은 2000년 12초에서 2015년 8초로 감소하였다.",
       "결론적으로 딴짓은 인간의 본능적 자기 보호 기제이자 창의성의 원천이며 때로는 지루한 현실을 견디게 해주는 유일한 탈출구이다. 지금 이 순간 여러분이 하고 있는 행위 역시 그 유구한 역사의 일부임을 기억하라.",
     ];
+    var COMPLETE_MUDO_IMAGES = [
+      'assets/mudo.jpg',
+      'assets/mudo2.jpeg',
+      'assets/mudo3.jpeg',
+      'assets/mudo4.jpeg',
+      'assets/mudo5.jpeg',
+      'assets/mudo6.jpeg',
+      'assets/mudo7.jpeg',
+    ];
+
+    function pickRandomCompleteMudoSrc() {
+      return COMPLETE_MUDO_IMAGES[Math.floor(Math.random() * COMPLETE_MUDO_IMAGES.length)];
+    }
+
+    var gaJoinFromShareCourseId = null;
+
+    function trackGa(eventName, params) {
+      if (typeof gtag !== 'function') return;
+      gtag('event', eventName, params || {});
+    }
+
+    function gaCourseParams(course) {
+      if (!course || !course.id) return {};
+      return { course_id: String(course.id) };
+    }
 
     /* ================================================================
        DOM refs
@@ -1119,9 +1234,15 @@
     var propAvatars   = $id('propAvatars');
     var roomOnline    = $id('roomOnline');
     var topbarOnline  = $id('topbarOnline');
+    var shareBtn      = $id('shareBtn');
+    var sharePopover  = $id('sharePopover');
+    var shareUrlInput = $id('shareUrlInput');
+    var shareCopyBtn  = $id('shareCopyBtn');
+    var shareCopyBtnLabel = $id('shareCopyBtnLabel');
     var statusText    = $id('statusText');
     var donePassagesEl= $id('donePassages');
     var sessionCompletePanel = $id('sessionCompletePanel');
+    var sessionCompleteImg = $id('sessionCompleteImg');
     var restartTypingBtn = $id('restartTypingBtn');
     var blockLabel    = $id('blockLabel');
     var typingHost    = $id('typingHost');
@@ -1437,6 +1558,23 @@
       });
     }
 
+    function isCourseActiveNow(course) {
+      if (!course) return false;
+      var active = filterActiveCourses(allCourses.length ? allCourses : [course]);
+      for (var i = 0; i < active.length; i++) {
+        if (active[i].id === course.id) return true;
+      }
+      return false;
+    }
+
+    function clearCourseFromUrl() {
+      var url = new URL(window.location.href);
+      if (!url.searchParams.has('course')) return;
+      url.searchParams.delete('course');
+      var qs = url.searchParams.toString();
+      window.history.replaceState(null, '', url.pathname + (qs ? '?' + qs : '') + url.hash);
+    }
+
     function updateTimeInfo() {
       var now = new Date();
       var jsDay = now.getDay();
@@ -1566,7 +1704,10 @@
     }
 
     function onCourseClick(course) {
-      if (currentCourse && currentCourse.id === course.id) return;
+      if (currentCourse && currentCourse.id === course.id) {
+        gaJoinFromShareCourseId = null;
+        return;
+      }
       if (!(nickname && nickname.trim() && /^\d{4}$/.test(sessionPin || ''))) {
         openNicknameModal({
           pendingCourse: course,
@@ -1616,6 +1757,7 @@
     nickCancel.addEventListener('click', function () {
       nickOverlay.classList.add('hidden');
       pendingCourse = null;
+      gaJoinFromShareCourseId = null;
     });
     nickInput.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') nickPinInput.focus();
@@ -1634,6 +1776,10 @@
     function roomPath(courseId) { return 'typing_rooms/' + courseId; }
 
     function joinRoom(course) {
+      if (gaJoinFromShareCourseId && course && gaJoinFromShareCourseId === course.id) {
+        trackGa('join_from_share', gaCourseParams(course));
+        gaJoinFromShareCourseId = null;
+      }
       currentCourse = course;
       ta.readOnly = false;
 
@@ -1660,6 +1806,7 @@
       showImportUploadTip();
       updateMaterialUI();
       renderFullSidebar();
+      updateShareMeta(course);
 
       if (!firebaseOk) {
         renderRankLocal();
@@ -1730,6 +1877,7 @@
       if (broadcastTimer) { clearInterval(broadcastTimer); broadcastTimer = null; }
       lastPlayersData = null;
       currentCourse = null;
+      closeSharePopover();
       setRoomMaterialMeta(null);
       resetTypingTimers();
       hideImportUploadTip();
@@ -1744,6 +1892,7 @@
       breadcrumb.textContent = '이화여자대학교';
       renderFullSidebar();
       renderTopbarOnlineAvatars(lastOnlineUsersData);
+      updateShareMeta(null);
     }
 
     function renderRankLocal() {
@@ -1940,6 +2089,7 @@
             resetFullSession();
             renderPassage();
             setRoomMaterialMeta({ fileName: file.name || '강의자료', uploadedBy: nickname || '익명' });
+            trackGa('material_upload', Object.assign(gaCourseParams(currentCourse), { passage_count: ps.length }));
             return;
           }
           passages = ps;
@@ -1947,12 +2097,14 @@
           renderPassage();
           setRoomMaterialMeta({ fileName: file.name || '강의자료', uploadedBy: nickname || '익명' });
           setStatus('강의자료를 업로드했습니다 (' + ps.length + '개 구간). 전체 참가자에게 공유됩니다.');
+          trackGa('material_upload', Object.assign(gaCourseParams(currentCourse), { passage_count: ps.length }));
         } else {
           passages = ps;
           resetFullSession();
           renderPassage();
           setRoomMaterialMeta({ fileName: file.name || '강의자료', uploadedBy: nickname || '익명' });
           setStatus('강의자료에서 ' + ps.length + '개 구간을 불러왔습니다.');
+          trackGa('material_upload', Object.assign(gaCourseParams(currentCourse), { passage_count: ps.length }));
         }
       } catch (e) {
         console.error(e);
@@ -2298,6 +2450,9 @@
       typingPaused = false;
       sessionAllComplete = true;
       if (donePassagesEl) donePassagesEl.innerHTML = '';
+      if (sessionCompleteImg) {
+        sessionCompleteImg.src = pickRandomCompleteMudoSrc();
+      }
       if (sessionCompletePanel) {
         sessionCompletePanel.classList.remove('hidden');
         sessionCompletePanel.setAttribute('aria-hidden', 'false');
@@ -2305,6 +2460,9 @@
       if (roomView) roomView.classList.add('session-complete-active');
       if (ta) ta.readOnly = true;
       setStatus('모든 구간을 완료했습니다. MUST HAVE 달성!');
+      trackGa('session_complete', Object.assign(gaCourseParams(currentCourse), {
+        passage_count: passages.length,
+      }));
     }
 
     function restartTypingSession() {
@@ -2677,10 +2835,165 @@
     }
 
     /* ================================================================
+       Share popover · Open Graph (in-app; Kakao uses middleware on Vercel)
+       ================================================================ */
+    function courseShareTitle(courseName) {
+      var name = (courseName || '').trim();
+      return name ? '[' + name + '] 같이 딴짓하자!' : '같이 딴짓하자!';
+    }
+
+    function setHeadMeta(attr, key, content) {
+      var sel = 'meta[' + attr + '="' + key + '"]';
+      var el = document.querySelector(sel);
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute(attr, key);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', content);
+    }
+
+    function updateShareMeta(course) {
+      var title = course ? courseShareTitle(course['교과목명']) : '같이 딴짓하자!';
+      var desc = course
+        ? String(course['교과목명'] || '').trim() + ' 수업에 몰래 같이 타이핑해요.'
+        : '수업 시간에 몰래 같이 타이핑해요.';
+      var pageUrl = window.location.origin + window.location.pathname;
+      if (course && course.id) {
+        pageUrl += '?course=' + encodeURIComponent(course.id);
+      }
+      var imageUrl = window.location.origin + '/assets/mudo.jpg';
+
+      document.title = course ? title : '같이 딴짓하자!';
+      setHeadMeta('property', 'og:title', title);
+      setHeadMeta('property', 'og:description', desc);
+      setHeadMeta('property', 'og:url', pageUrl);
+      setHeadMeta('property', 'og:image', imageUrl);
+      setHeadMeta('name', 'twitter:title', title);
+      setHeadMeta('name', 'twitter:description', desc);
+      setHeadMeta('name', 'twitter:image', imageUrl);
+    }
+
+    function getShareUrl() {
+      var url = new URL(window.location.href);
+      url.search = '';
+      url.hash = '';
+      if (currentCourse && currentCourse.id) {
+        url.searchParams.set('course', currentCourse.id);
+      }
+      return url.toString();
+    }
+
+    function closeSharePopover() {
+      if (!sharePopover) return;
+      sharePopover.classList.add('hidden');
+      if (shareBtn) shareBtn.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('click', onShareOutsideClick);
+    }
+
+    function openSharePopover() {
+      if (!sharePopover || !shareUrlInput) return;
+      shareUrlInput.value = getShareUrl();
+      sharePopover.classList.remove('hidden');
+      if (shareBtn) shareBtn.setAttribute('aria-expanded', 'true');
+      if (shareCopyBtnLabel) shareCopyBtnLabel.textContent = '링크 복사';
+      setTimeout(function () { document.addEventListener('click', onShareOutsideClick); }, 0);
+    }
+
+    function toggleSharePopover() {
+      if (!sharePopover) return;
+      if (sharePopover.classList.contains('hidden')) openSharePopover();
+      else closeSharePopover();
+    }
+
+    function onShareOutsideClick(e) {
+      if (!sharePopover || sharePopover.classList.contains('hidden')) return;
+      var wrap = shareBtn && shareBtn.closest('.topbar-share-wrap');
+      if (wrap && wrap.contains(e.target)) return;
+      closeSharePopover();
+    }
+
+    function copyShareLink() {
+      var url = getShareUrl();
+      if (shareUrlInput) shareUrlInput.value = url;
+      function onCopied() {
+        if (shareCopyBtnLabel) shareCopyBtnLabel.textContent = '복사됨';
+        setStatus('링크를 복사했습니다.');
+        try {
+          var shared = new URL(url);
+          var sharedCourseId = shared.searchParams.get('course');
+          if (sharedCourseId) {
+            trackGa('share_copy', { course_id: sharedCourseId });
+          }
+        } catch (shareGaErr) { /* ignore */ }
+        setTimeout(function () {
+          if (shareCopyBtnLabel) shareCopyBtnLabel.textContent = '링크 복사';
+        }, 2000);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(onCopied).catch(function () {
+          shareUrlInput.select();
+          try {
+            if (document.execCommand('copy')) onCopied();
+          } catch (err) { setStatus('링크 복사에 실패했습니다.'); }
+        });
+      } else {
+        shareUrlInput.select();
+        try {
+          if (document.execCommand('copy')) onCopied();
+        } catch (err2) { setStatus('링크 복사에 실패했습니다.'); }
+      }
+    }
+
+    function tryJoinCourseFromUrl() {
+      var params = new URLSearchParams(window.location.search);
+      var courseId = params.get('course');
+      if (!courseId || !allCourses.length) return;
+
+      var course = null;
+      for (var i = 0; i < allCourses.length; i++) {
+        if (allCourses[i].id === courseId) {
+          course = allCourses[i];
+          break;
+        }
+      }
+
+      clearCourseFromUrl();
+
+      if (!course) {
+        setStatus('공유 링크의 수업을 찾을 수 없습니다.');
+        return;
+      }
+
+      if (!isCourseActiveNow(course)) {
+        if (currentCourse) leaveRoom();
+        setStatus(course['교과목명'] + ' 수업이 종료되어 홈으로 이동했습니다.');
+        return;
+      }
+
+      gaJoinFromShareCourseId = course.id;
+      onCourseClick(course);
+    }
+
+    if (shareBtn) {
+      shareBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        toggleSharePopover();
+      });
+    }
+    if (shareCopyBtn) {
+      shareCopyBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        copyShareLink();
+      });
+    }
+
+    /* ================================================================
        Workspace click → Home
        ================================================================ */
     workspaceRow.style.cursor = 'pointer';
     workspaceRow.addEventListener('click', function () {
+      closeSharePopover();
       if (currentCourse) leaveRoom();
       breadcrumb.textContent = '이화여자대학교';
     });
@@ -2867,6 +3180,8 @@
               submitLabel: '확인',
               prefillNick: hadNickOnly ? nickname : '',
             });
+          } else {
+            tryJoinCourseFromUrl();
           }
         })
         .catch(function (e) {
