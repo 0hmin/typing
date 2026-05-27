@@ -1575,6 +1575,29 @@
       window.history.replaceState(null, '', url.pathname + (qs ? '?' + qs : '') + url.hash);
     }
 
+    function getShareCourseIdFromUrl() {
+      return new URLSearchParams(window.location.search).get('course');
+    }
+
+    function findCourseById(courseId) {
+      if (!courseId || !allCourses.length) return null;
+      for (var i = 0; i < allCourses.length; i++) {
+        if (allCourses[i].id === courseId) return allCourses[i];
+      }
+      return null;
+    }
+
+    function openNicknameModalForShareCourse(course) {
+      gaJoinFromShareCourseId = course.id;
+      openNicknameModal({
+        pendingCourse: course,
+        title: '수업에 참여하기',
+        desc: '「' + (course['교과목명'] || '수업') + '」 수업방에 들어가려면 닉네임과 숫자 4자리 PIN을 입력하세요.',
+        submitLabel: '수업 참여',
+        prefillNick: (nickname || '').trim() || '',
+      });
+    }
+
     function updateTimeInfo() {
       var now = new Date();
       var jsDay = now.getDay();
@@ -1751,6 +1774,7 @@
         if (currentCourse) leaveRoom();
         joinRoom(pendingCourse);
         pendingCourse = null;
+        clearCourseFromUrl();
       }
       renderFullSidebar();
     });
@@ -2946,18 +2970,10 @@
     }
 
     function tryJoinCourseFromUrl() {
-      var params = new URLSearchParams(window.location.search);
-      var courseId = params.get('course');
-      if (!courseId || !allCourses.length) return;
+      var courseId = getShareCourseIdFromUrl();
+      if (!courseId) return;
 
-      var course = null;
-      for (var i = 0; i < allCourses.length; i++) {
-        if (allCourses[i].id === courseId) {
-          course = allCourses[i];
-          break;
-        }
-      }
-
+      var course = findCourseById(courseId);
       clearCourseFromUrl();
 
       if (!course) {
@@ -3169,13 +3185,31 @@
         .then(function (data) {
           allCourses = data;
           refreshCourses();
+
+          var shareCourseId = getShareCourseIdFromUrl();
+          var shareCourse = shareCourseId ? findCourseById(shareCourseId) : null;
+          if (shareCourseId && !shareCourse) {
+            clearCourseFromUrl();
+            setStatus('공유 링크의 수업을 찾을 수 없습니다.');
+          } else if (shareCourse && !isCourseActiveNow(shareCourse)) {
+            clearCourseFromUrl();
+            setStatus(shareCourse['교과목명'] + ' 수업이 종료되어 참여할 수 없습니다.');
+            shareCourse = null;
+          }
+
           var hasPin = /^\d{4}$/.test(sessionPin || '');
-          if (!(nickname && nickname.trim() && hasPin)) {
+          var isLoggedIn = !!(nickname && nickname.trim() && hasPin);
+
+          if (!isLoggedIn) {
+            if (shareCourse) {
+              openNicknameModalForShareCourse(shareCourse);
+              return;
+            }
             var hadNickOnly = !!(nickname && nickname.trim()) && !hasPin;
             openNicknameModal({
               title: hadNickOnly ? 'PIN 설정' : '환영합니다',
               desc: hadNickOnly
-                ? '동명이인을 줄이기 위해 숫자 4자리 PIN을 설정해 주세요. 기존 즐겨찾기는 확인 시 이어집니다.'
+                ? '동명이인을 줄이기 위해 숫자 4자리 PIN을 설정해 주세요. 기존 즐겨찾기는 이어집니다.'
                 : '닉네임과 숫자 4자리 PIN을 입력하세요. 목록·랭킹·수업방에 닉네임이 표시되며, PIN은 이 기기에서만 사용됩니다.',
               submitLabel: '확인',
               prefillNick: hadNickOnly ? nickname : '',
